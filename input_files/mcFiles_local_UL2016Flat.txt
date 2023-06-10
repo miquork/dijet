@@ -1,1 +1,0 @@
-../data/dijet/mc/FlatQCD_UL2016.root

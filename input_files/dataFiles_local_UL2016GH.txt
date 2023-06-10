@@ -1,2 +1,0 @@
-../data/dijet/data/JetHT_UL2016G.root
-../data/dijet/data/JetHT_UL2016H.root

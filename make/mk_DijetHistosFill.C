@@ -23,34 +23,35 @@
 #define GPU
 //#define LOCAL
 
-#ifdef LOCAL
-// Compile these libraries into *.so first with root -l -b -q mk_CondFormats.C
-// (works for 6.18.04?)
-/*
-R__LOAD_LIBRARY(CondFormats/JetMETObjects/src/JetCorrectorParameters.cc+)
-R__LOAD_LIBRARY(CondFormats/JetMETObjects/src/SimpleJetCorrector.cc+)
-R__LOAD_LIBRARY(CondFormats/JetMETObjects/src/FactorizedJetCorrector.cc+)
+// $ can this be removed?
+// #ifdef LOCAL
+// // Compile these libraries into *.so first with root -l -b -q mk_CondFormats.C
+// // (works for 6.18.04?)
+// /*
+// R__LOAD_LIBRARY(CondFormats/JetMETObjects/src/JetCorrectorParameters.cc+)
+// R__LOAD_LIBRARY(CondFormats/JetMETObjects/src/SimpleJetCorrector.cc+)
+// R__LOAD_LIBRARY(CondFormats/JetMETObjects/src/FactorizedJetCorrector.cc+)
 
-R__LOAD_LIBRARY(CondFormats/JetMETObjects/src/SimpleJetCorrectionUncertainty.cc+)
-R__LOAD_LIBRARY(CondFormats/JetMETObjects/src/JetCorrectionUncertainty.cc+)
-*/
-//R__LOAD_LIBRARY(DijetHistosFill.C+g)
-// As in jetphys/mk2_histosFill.C:
-R__LOAD_LIBRARY(CondFormats/JetMETObjects/src/JetCorrectorParameters_cc)
-R__LOAD_LIBRARY(CondFormats/JetMETObjects/src/SimpleJetCorrector_cc)
-R__LOAD_LIBRARY(CondFormats/JetMETObjects/src/FactorizedJetCorrector_cc)
+// R__LOAD_LIBRARY(CondFormats/JetMETObjects/src/SimpleJetCorrectionUncertainty.cc+)
+// R__LOAD_LIBRARY(CondFormats/JetMETObjects/src/JetCorrectionUncertainty.cc+)
+// */
+// //R__LOAD_LIBRARY(DijetHistosFill.C+g)
+// // As in jetphys/mk2_histosFill.C:
+// R__LOAD_LIBRARY(CondFormats/JetMETObjects/src/JetCorrectorParameters_cc)
+// R__LOAD_LIBRARY(CondFormats/JetMETObjects/src/SimpleJetCorrector_cc)
+// R__LOAD_LIBRARY(CondFormats/JetMETObjects/src/FactorizedJetCorrector_cc)
 
-R__LOAD_LIBRARY(CondFormats/JetMETObjects/src/SimpleJetCorrectionUncertainty_cc)
-R__LOAD_LIBRARY(CondFormats/JetMETObjects/src/JetCorrectionUncertainty_cc)
-//
-R__LOAD_LIBRARY(CondFormats/JetMETObjects/src/JetResolutionObject_cc)
-R__LOAD_LIBRARY(JetMETCorrections/Modules/src/JetResolution_cc)
-//
-R__LOAD_LIBRARY(DijetHistosFill_C)
-#else
-// (works for 6.26/10)
-R__LOAD_LIBRARY(DijetHistosFill_C.so)
-#endif
+// R__LOAD_LIBRARY(CondFormats/JetMETObjects/src/SimpleJetCorrectionUncertainty_cc)
+// R__LOAD_LIBRARY(CondFormats/JetMETObjects/src/JetCorrectionUncertainty_cc)
+// //
+// R__LOAD_LIBRARY(CondFormats/JetMETObjects/src/JetResolutionObject_cc)
+// R__LOAD_LIBRARY(JetMETCorrections/Modules/src/JetResolution_cc)
+// //
+// R__LOAD_LIBRARY(DijetHistosFill_C)
+// #else
+// // (works for 6.26/10)
+// R__LOAD_LIBRARY(DijetHistosFill_C.so)
+// #endif
 
 void mk_DijetHistosFill(string dataset = "X", string version = "vX") {
 
@@ -113,6 +114,7 @@ void mk_DijetHistosFill(string dataset = "X", string version = "vX") {
      dataset=="UL2017MG"  || dataset=="UL2018MG"
      ); 
 
+  // $ can this be removed?  
   //cout << "Clean old shared objects and link files" << endl << flush;
   //gSystem->Exec("rm *.d");
   //gSystem->Exec("rm *.so");
@@ -120,35 +122,33 @@ void mk_DijetHistosFill(string dataset = "X", string version = "vX") {
 
   string path = gSystem->pwd();
 
-  gSystem->AddIncludePath(Form("-I%s",path.c_str()));
-  gSystem->AddIncludePath(Form("-I%s/CondFormats/JetMETObjects/interface",path.c_str()));
+  gSystem->AddIncludePath(Form("-I%s/..",path.c_str()));
+  gSystem->AddIncludePath(Form("-I%s/../CondFormats/JetMETObjects/interface",path.c_str()));
 
 #ifdef GPU
   // Compile these libraries into *.so first with root -l -b -q mk_CondFormats.C
 
-  gROOT->ProcessLine(".L CondFormats/JetMETObjects/src/Utilities.cc+");
-  gROOT->ProcessLine(".L CondFormats/JetMETObjects/src/JetCorrectorParameters.cc+");
-  gROOT->ProcessLine(".L CondFormats/JetMETObjects/src/SimpleJetCorrector.cc+");
-  gROOT->ProcessLine(".L CondFormats/JetMETObjects/src/FactorizedJetCorrector.cc+");
+  gROOT->ProcessLine(".L ../CondFormats/JetMETObjects/src/Utilities.cc+");
+  gROOT->ProcessLine(".L ../CondFormats/JetMETObjects/src/JetCorrectorParameters.cc+");
+  gROOT->ProcessLine(".L ../CondFormats/JetMETObjects/src/SimpleJetCorrector.cc+");
+  gROOT->ProcessLine(".L ../CondFormats/JetMETObjects/src/FactorizedJetCorrector.cc+");
   
-  gROOT->ProcessLine(".L CondFormats/JetMETObjects/src/SimpleJetCorrectionUncertainty.cc+");
-  gROOT->ProcessLine(".L CondFormats/JetMETObjects/src/JetCorrectionUncertainty.cc+");
+  gROOT->ProcessLine(".L ../CondFormats/JetMETObjects/src/SimpleJetCorrectionUncertainty.cc+");
+  gROOT->ProcessLine(".L ../CondFormats/JetMETObjects/src/JetCorrectionUncertainty.cc+");
 
-  gROOT->ProcessLine(".L CondFormats/JetMETObjects/src/JetResolutionObject.cc+");
+  gROOT->ProcessLine(".L ../CondFormats/JetMETObjects/src/JetResolutionObject.cc+");
   gROOT->ProcessLine(".L JetMETCorrections/Modules/src/JetResolution.cc+");
 
   cout << "Load library in GPU mode" << endl << flush;
-  gROOT->ProcessLine(".L DijetHistosFill.C+g");
+  gROOT->ProcessLine(".L ../DijetHistosFill.C+g");
 #endif
 
 
   TChain *c = new TChain("Events");
   
   // Automatically figure out where we are running the job
-  bool runGPU = (path=="/media/storage/dijet");
   bool runLocal = (path=="/Users/voutila/Dropbox/Cern/dijet" ||
 		   path=="/Users/manvouti/Dropbox/Cern/dijet");
-  if (!runLocal) assert(runGPU);
   
   if (addData) {
     ifstream fin(runLocal ? Form("input_files/dataFiles_local_%s.txt",dataset.c_str()) : 
@@ -162,6 +162,7 @@ void mk_DijetHistosFill(string dataset = "X", string version = "vX") {
     }
     cout << "Chained " << nFiles <<  " files" << endl << flush;
 
+    // $ can this be removed?
     //bool isZB = (dataset=="UL2017B_ZB" || dataset=="UL2017C_ZB" || dataset=="UL2017D_ZB" ||
     //		 dataset=="UL2017E_ZB" || dataset=="UL2017F_ZB");
     // => decide internally from dataset.Contains("_ZB")

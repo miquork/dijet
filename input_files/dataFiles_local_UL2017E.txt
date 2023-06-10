@@ -1,1 +1,0 @@
-../data/dijet/data/JetHT_UL2017E.root

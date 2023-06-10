@@ -1,9 +1,8 @@
 #define DijetHistosFill_cxx
-#include "DijetHistosFill.h"
+#include "../interface/DijetHistosFill.h"
 #include <TH2.h>
 #include <TStyle.h>
 #include <TCanvas.h>
-
 #include "TLorentzVector.h"
 #include "TH2D.h"
 #include "TProfile.h"
@@ -54,6 +53,8 @@ bool debugevent = false; // per-event debug
 // Permit ~0.7 extra scaling to allow for HF L3Res
 const double maxa = 10; // no cut with 10
 
+
+// UTILITIES
 double DELTAPHI(double phi1, double phi2) {
   double dphi = fabs(phi1-phi2);
   return (dphi <= TMath::Pi() ? dphi : TMath::TwoPi() - dphi);
@@ -70,8 +71,12 @@ struct range {
   double absetamin;
   double absetamax;
 };
+
+//map from trigger name to range
 std::map<std::string, struct range> mt;
 
+
+// CLASS DEFINITIONS
 class mctruthHistos {
 public:
 
@@ -196,11 +201,11 @@ public:
   TH1D *hcosdphi;
 };
 
-// Helper function to retrieve FactorizedJetCorrector 
-FactorizedJetCorrector *getFJC(string l1="", string l2="", string res="",
-			       string path="") {
 
-  // Set default jet algo
+//HELPER FUNCTIONS
+
+// Helper function to retrieve FactorizedJetCorrector 
+FactorizedJetCorrector *getFJC(string l1="", string l2="", string res="",string path="") {
   if (l1!="" && !(TString(l1.c_str()).Contains("_AK")))
     l1 += "_AK4PFPuppi";
   if (l2!="" && !(TString(l2.c_str()).Contains("_AK")))
@@ -209,7 +214,7 @@ FactorizedJetCorrector *getFJC(string l1="", string l2="", string res="",
     res += "_AK4PFPuppi";
 
   // Set default path
-  if (path=="") path = "CondFormats/JetMETObjects/data";
+  if (path=="") path = "../CondFormats/JetMETObjects/data";
   const char *cd = path.c_str();
   const char *cl1 = l1.c_str();
   const char *cl2 = l2.c_str();
@@ -240,8 +245,214 @@ FactorizedJetCorrector *getFJC(string l1="", string l2="", string res="",
   return jec;
 } // getFJC
 
+
+//helper function to setup trigger vector
+// @param void
+// @return vtrg vector of triggers
+vector<string> DijetHistosFill::initvtrg()
+{
+  <vector<string> vtrg;
+
+  if (isZB)
+    vtrg.push_back(
+        "HLT_ZeroBias");  // biased for JetHT, but keep as placeholder
+
+  vtrg.push_back("HLT_PFJet40");
+  vtrg.push_back("HLT_PFJet60");
+  vtrg.push_back("HLT_PFJet80");
+  // vtrg.push_back("HLT_PFJet110");
+  vtrg.push_back("HLT_PFJet140");
+  vtrg.push_back("HLT_PFJet200");
+  vtrg.push_back("HLT_PFJet260");
+  vtrg.push_back("HLT_PFJet320");
+  vtrg.push_back("HLT_PFJet400");  // v14
+  vtrg.push_back("HLT_PFJet450");
+  vtrg.push_back("HLT_PFJet500");
+  if (isRun2 > 2) vtrg.push_back("HLT_PFJet550");
+
+  vtrg.push_back("HLT_DiPFJetAve40");
+  vtrg.push_back("HLT_DiPFJetAve60");
+  vtrg.push_back("HLT_DiPFJetAve80");
+  vtrg.push_back("HLT_DiPFJetAve140");
+  vtrg.push_back("HLT_DiPFJetAve200");
+  vtrg.push_back("HLT_DiPFJetAve260");
+  vtrg.push_back("HLT_DiPFJetAve320");
+  vtrg.push_back("HLT_DiPFJetAve400");
+  vtrg.push_back("HLT_DiPFJetAve500");
+
+  // if (dataset!="UL2017B") {
+  vtrg.push_back("HLT_DiPFJetAve60_HFJEC");
+  vtrg.push_back("HLT_DiPFJetAve80_HFJEC");
+  vtrg.push_back("HLT_DiPFJetAve100_HFJEC");
+  vtrg.push_back("HLT_DiPFJetAve160_HFJEC");
+  vtrg.push_back("HLT_DiPFJetAve220_HFJEC");
+  vtrg.push_back("HLT_DiPFJetAve300_HFJEC");
+  //}
+
+  // vtrg.push_back("HLT_PFJetFwd15");
+  // vtrg.push_back("HLT_PFJetFwd25");
+  if (isRun2 > 2) {  // && dataset!="UL2017B") {
+    vtrg.push_back("HLT_PFJetFwd40");
+    vtrg.push_back("HLT_PFJetFwd60");
+    vtrg.push_back("HLT_PFJetFwd80");
+    vtrg.push_back("HLT_PFJetFwd140");
+    vtrg.push_back("HLT_PFJetFwd200");
+    vtrg.push_back("HLT_PFJetFwd260");
+    vtrg.push_back("HLT_PFJetFwd320");
+    vtrg.push_back("HLT_PFJetFwd400");
+    vtrg.push_back("HLT_PFJetFwd450");
+    vtrg.push_back("HLT_PFJetFwd500");
+  }
+
+  if (doMCtrigOnly && isMC) {
+    vtrg.clear();
+    vtrg.push_back("HLT_MC");
+  }
+  if (isZB && !isMC) {
+    vtrg.clear();  // no jet triggers from ZeroBias PD
+    vtrg.push_back("HLT_ZeroBias");
+  }
+
+  return vtrg;
+}
+
+// helper function to set status of branches
+//  @param b branch names
+//  @return void
+void DijetsHistosFill::setBranchStatus(vector<string> b) {
+  for (unsigned int i = 0; i < b.size(); ++i) {
+    fChain->SetBranchStatus(b[i].c_str(), 1);
+  }
+}
+
+
+//helper function to set all status of branches
+// @param t tree
+// @return void
+void DijetsHistosFill::initBranchstatus(vector<string> vtrg, int ntrg) {
+  t->SetBranchStatus("*",1);
+
+  // Set status of branches to be read
+  cout << "Setting branch status for "
+       << (isMC ? (isMG ? "MC (MG)" : "MC (Flat)")
+                : (isZB ? "DATA (ZB)" : "DATA"))
+       << (isRun2 ? " and Run2 (" : " and Run3 (") << isRun2 << ")" << endl
+       << flush;
+
+  // Set status of branches to be read
+  if (isMC) {
+    setBranchStatus(vector<string>(
+      {"genWeight", "Generator_binvar", "Pileup_pthatmax"}));
+
+    if (smearJets || doMCtruth){
+      cout << "Adding branches for GenJets (" << (smearJets ? " smearJets" : "")
+           << (doMCtruth ? " doMCtruth" : "") << ")" << endl;
+      setBranchStatus(vector<string>({ "Jet_genJetIdx", "nGenJet", "GenJet_pt", "GenJet_eta", "GenJet_phi", "GenJet_mass"}));
+
+      if (doMCtruth){
+        setBranchStatus(vector<string>(
+          {"GenVtx_z","PV_z"}));
+      }
+      _seed = 4;
+      _mersennetwister = std::mt19937(_seed);
+    }
+  }
+
+  if (isMG) {
+    setBranchStatus(vector<string>({"LHE_HT"}));
+  }
+
+  if(isRun2) {
+    setBranchStatus(vector<string>(
+        {"fixedGridRhoFastjetAll", "Jet_area", "ChsMET_pt", "ChsMET_phi"}));
+  }
+  else {
+    setBranchStatus(vector<string>({"PuppiMET_pt","PuppiMET_phi"}));
+  }
+
+  if(doPFComposition){
+    setBranchStatus(vector<string>(
+        {"Jet_chHEF", "Jet_neHEF", "Jet_neEmEF", "Jet_chEmEF", "Jet_muEF",
+         /*"Jet_hfEmEF","Jet_hfHEF" */}));
+  }
+
+  if(doTriggerMatch)
+  {
+    setBranchStatus(vector<string>({"nTrigObjJMEAK4", "nTrigObjJMEAK4",
+                                    "TrigObjJMEAK4_eta", "TrigObjJMEAK4_phi"}))
+  }
+
+  for (int i = 0; i != ntrg; ++i) {
+    if (vtrg[i] != "HLT_MC") fChain->SetBranchStatus(vtrg[i].c_str(), 1);
+    if (mtrg[vtrg[i]] == 0) {
+      cout << "Missing branch info for " << vtrg[i] << endl << flush;
+    }
+    assert(mtrg[vtrg[i]] != 0);
+  }
+
+  setBranchStatus(
+      vector<string>({"run", "luminosityBlock", "event", "nJet", "Jet_pt",
+                      "Jet_eta", "Jet_phi", "Jet_mass", "Jet_jetId",
+                      "Jet_rawFactor", "Flag_METFilters"}));
+}
+
+//helper functoin to setup mt (map from triggers to their respective pt/ eta regions)
+// @param fwdeta forward eta
+// @param fwdeta0 forward eta 0
+// @return void
+void DijetsHistosFill::initmt(double fwdeta, double fwdeta0)
+{
+  mt["HLT_MC"] = range{15, 3000, 0, 5.2};
+  mt["HLT_ZeroBias"] = range{15, 3000, 0, 5.2};
+
+  mt["HLT_DiPFJetAve40"] = range{40, 85, 0, 5.2};
+  mt["HLT_DiPFJetAve60"] = range{85, 100, 0, 5.2};
+  mt["HLT_DiPFJetAve80"] = range{100, 155, 0, 5.2};
+  mt["HLT_DiPFJetAve140"] = range{155, 210, 0, 5.2};
+  mt["HLT_DiPFJetAve200"] = range{210, 300, 0, 5.2};
+  mt["HLT_DiPFJetAve260"] = range{300, 400, 0, 5.2};
+  mt["HLT_DiPFJetAve320"] = range{400, 500, 0, 5.2};
+  mt["HLT_DiPFJetAve400"] = range{500, 600, 0, 5.2};
+  mt["HLT_DiPFJetAve500"] = range{600, 6500, 0, 5.2};
+
+  // 2.65, 2.853, 2.964, 3.139, 3.314, 3.489, 3.664, 3.839, 4.013, 4.191,
+  double fwdeta = 3.139;   // was 2.853. 80% (100%) on negative (positive) side
+  double fwdeta0 = 2.964;  // 2.853; // 40 and 260 up
+  mt["HLT_DiPFJetAve60_HFJEC"] = range{85, 100, fwdeta, 5.2};
+  mt["HLT_DiPFJetAve80_HFJEC"] = range{100, 125, fwdeta, 5.2};
+  mt["HLT_DiPFJetAve100_HFJEC"] = range{125, 180, fwdeta, 5.2};
+  mt["HLT_DiPFJetAve160_HFJEC"] = range{180, 250, fwdeta, 5.2};
+  mt["HLT_DiPFJetAve220_HFJEC"] = range{250, 350, fwdeta0, 5.2};
+  mt["HLT_DiPFJetAve300_HFJEC"] = range{350, 6500, fwdeta0, 5.2};
+
+  mt["HLT_PFJet40"] = range{40, 85, 0, 5.2};
+  mt["HLT_PFJet60"] = range{85, 100, 0, 5.2};
+  mt["HLT_PFJet80"] = range{100, 155, 0, 5.2};
+  mt["HLT_PFJet140"] = range{155, 210, 0, 5.2};
+  mt["HLT_PFJet200"] = range{210, 300, 0, 5.2};
+  mt["HLT_PFJet260"] = range{300, 400, 0, 5.2};
+  mt["HLT_PFJet320"] = range{400, 500, 0, 5.2};
+  mt["HLT_PFJet400"] = range{500, 600, 0, 5.2};
+  mt["HLT_PFJet450"] = range{500, 600, 0, 5.2};
+  mt["HLT_PFJet500"] = range{600, 6500, 0, 5.2};
+  mt["HLT_PFJet550"] = range{700, 6500, 0, 5.2};
+
+  mt["HLT_PFJetFwd40"] = range{40, 85, fwdeta0, 5.2};
+  mt["HLT_PFJetFwd60"] = range{85, 100, fwdeta, 5.2};
+  mt["HLT_PFJetFwd80"] = range{100, 155, fwdeta, 5.2};
+  mt["HLT_PFJetFwd140"] = range{155, 210, fwdeta, 5.2};
+  mt["HLT_PFJetFwd200"] = range{210, 300, fwdeta0, 5.2};
+  mt["HLT_PFJetFwd260"] = range{300, 400, fwdeta0, 5.2};
+  mt["HLT_PFJetFwd320"] = range{400, 500, fwdeta0, 5.2};
+  mt["HLT_PFJetFwd400"] = range{500, 600, fwdeta0, 5.2};
+  mt["HLT_PFJetFwd450"] = range{500, 600, fwdeta0, 5.2};  // x
+  mt["HLT_PFJetFwd500"] = range{600, 6500, fwdeta0, 5.2};
+}
+
+
 void DijetHistosFill::Loop()
 {
+  // $ what here can go?
 //   In a ROOT session, you can do:
 //      root> .L DijetHistosFill.C
 //      root> DijetHistosFill t
@@ -267,8 +478,6 @@ void DijetHistosFill::Loop()
 //by  b_branchname->GetEntry(ientry); //read only this branch
    if (fChain == 0) return;
 
-   //ROOT.EnableImplicitMT(); // From Nico on Skype, to parallelize processing
-
    TStopwatch fulltime, laptime;
    fulltime.Start();
    TDatime bgn;
@@ -276,12 +485,12 @@ void DijetHistosFill::Loop()
 
    fChain->SetBranchStatus("*",0);
 
-   //if (debug) 
    cout << "Setting branch status for "
-	<< (isMC ? (isMG ? "MC (MG)" : "MC (Flat)") : (isZB ? "DATA (ZB)" : "DATA"))
-	<< (isRun2 ? " and Run2 (" : " and Run3 (") << isRun2 << ")"
-	<< endl << flush;
-   
+        << (isMC ? (isMG ? "MC (MG)" : "MC (Flat)")
+                 : (isZB ? "DATA (ZB)" : "DATA"))
+        << (isRun2 ? " and Run2 (" : " and Run3 (") << isRun2 << ")" << endl
+        << flush;
+
    if (isMC) fChain->SetBranchStatus("genWeight",1);
    if (isMC) fChain->SetBranchStatus("Generator_binvar",1); // pThat in Pythia8
    if (isMC) fChain->SetBranchStatus("Pileup_pthatmax",1);
@@ -316,7 +525,9 @@ void DijetHistosFill::Loop()
    if (isRun2) fChain->SetBranchStatus("fixedGridRhoFastjetAll",1);
    
    // Listing of available triggers
-   vector<string> vtrg;
+   vector<string> vtrg  =  initvtg();
+
+   //==========================del start==========================
 
    if (isZB) vtrg.push_back("HLT_ZeroBias"); // biased for JetHT, but keep as placeholder
    
@@ -376,6 +587,8 @@ void DijetHistosFill::Loop()
      vtrg.push_back("HLT_ZeroBias");
    }
 
+   //================================del fin===============================
+
    int ntrg = vtrg.size();
 
    for (int i = 0; i != ntrg; ++i) {
@@ -394,8 +607,9 @@ void DijetHistosFill::Loop()
    fChain->SetBranchStatus("Jet_phi",1);
    fChain->SetBranchStatus("Jet_mass",1);
    fChain->SetBranchStatus("Jet_jetId",1);
-
    fChain->SetBranchStatus("Jet_rawFactor",1);
+
+
    if (isRun2) fChain->SetBranchStatus("Jet_area",1);
      
    //bool doPFComposition = true;
@@ -428,7 +642,7 @@ void DijetHistosFill::Loop()
    if (doTriggerMatch) {
      // https://github.com/cms-sw/cmssw/blob/CMSSW_12_4_8/PhysicsTools/NanoAOD/python/triggerObjects_cff.py#L136-L180
      fChain->SetBranchStatus("nTrigObjJMEAK4",1);
-     fChain->SetBranchStatus("TrigObjJMEAK4_pt",1);
+     fChain->SetBranchStatus("nTrigObjJMEAK4", 1);
      fChain->SetBranchStatus("TrigObjJMEAK4_eta",1);
      fChain->SetBranchStatus("TrigObjJMEAK4_phi",1);
    }
