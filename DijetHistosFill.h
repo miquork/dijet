@@ -7,22 +7,20 @@
 #ifndef DijetHistosFill_h
 #define DijetHistosFill_h
 
-#include <TROOT.h>
 #include <TChain.h>
 #include <TFile.h>
+#include <TROOT.h>
 
-
-#include "CondFormats/JetMETObjects/interface/FactorizedJetCorrector.h"
-#include "CondFormats/JetMETObjects/interface/JetCorrectorParameters.h"
-#include "CondFormats/JetMETObjects/interface/JetCorrectionUncertainty.h"
-
-#include "CondFormats/JetMETObjects/interface/JetResolutionObject.h"
-#include "JetMETCorrections/Modules/interface/JetResolution.h"
-
-#include <iostream>
 #include <cstdio>
+#include <iostream>
 #include <map>
 #include <string>
+
+#include "CondFormats/JetMETObjects/interface/FactorizedJetCorrector.h"
+#include "CondFormats/JetMETObjects/interface/JetCorrectionUncertainty.h"
+#include "CondFormats/JetMETObjects/interface/JetCorrectorParameters.h"
+#include "CondFormats/JetMETObjects/interface/JetResolutionObject.h"
+#include "JetMETCorrections/Modules/interface/JetResolution.h"
 using namespace std;
 
 // Header file for the classes stored in the TTree if any.
@@ -3784,6 +3782,12 @@ public :
    virtual Bool_t   Notify();
    virtual void     Show(Long64_t entry = -1);
 
+   //new functions to refactor Loop() funcion
+   virtual vector<string> initvtrg();
+   virtual void setBranchStatus(vector<string> b);
+   virtual void initBranchstatus(vector<string> vtrg, int ntrg,
+                                 bool doTriggerMatch);
+   virtual void initmt(double fwdeta, double fwdeta0);
    bool LoadJSON();
 };
 

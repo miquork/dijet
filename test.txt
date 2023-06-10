@@ -1,0 +1,35 @@
+
+Processing mk_DijetHistosFill.C("UL2018A","test")...
+Current path: /home/local/larshust/work/dijet
+Load library in GPU mode
+Chaining data files:
+Chained 1 files
+Setting branch status for DATA and Run2 (4)
+CondFormats/JetMETObjects/data/Summer19UL18_RunA_V5_DATA_L1FastJet_AK4PFchs.txt
+CondFormats/JetMETObjects/data/Summer19UL18_RunA_V5_DATA_L2Relative_AK4PFchs.txt
+CondFormats/JetMETObjects/data/Summer19UL18_RunA_V5_DATA_L2L3Residual_AK4PFchs.txt
+CondFormats/JetMETObjects/data/Summer19UL18_RunA_V5_DATA_L1RC_AK4PFchs.txt
+Processing LoadJSON() with rootfiles/Cert_314472-325175_13TeV_Legacy2018_Collisions18_JSON.txt ...
+Called LoadJSON() with rootfiles/Cert_314472-325175_13TeV_Legacy2018_Collisions18_JSON.txt:
+Loaded 478 good runs and 234527 good lumi sections
+Loaded 286811 entries
+
+Opened file: /media/DATA/JME_NANO_DATA/UL2018/JetHT_Run2018A-UL2018_MiniAODv2_JMENanoAODv9-v1_NANOAOD/81EB3C11-1C5C-F74B-8559-05605F6E51F9.root
+.n=0
+
+Processed 0 events (0.0%) in 1 sec. (0 sec. for last 0)...........
+Processed 100000 events (34.9%) in 64 sec. (64 sec. for last 100000)
+Estimated runtime:  183 sec.  (183 sec. for last 100000)
+....................
+Processed 286810 events (100.0%) in 181 sec. (118 sec. for last 186810)
+Estimated runtime:  181 sec.  (181 sec. for last 186810)
+
+Finished looping over 286811 of which 92554 passed trigger. Start writing file.
+File written and closed.
+Found 0 bad events according to new JSON (events cut)
+Found 194257 bad events according to trigger bits (events cut)
+Found 0 bad events not in fwd trigger phase space (events cut)
+Processed 1 runs, 138 luminosity blocks and 286811 events
+Saving these to file rootfiles/jmenano.json for brilcalc
+Analyzed 92554 events
+Saving these to rootfiles/jmenano_data_out_UL2018A_test.root for drawJMENANO.C

@@ -3,22 +3,18 @@
 // Created: June 6, 2021
 
 //#include "CondFormats/JetMETObjects/src/Utilities.cc"
-#include "CondFormats/JetMETObjects/interface/JetCorrectorParameters.h"
-#include "CondFormats/JetMETObjects/interface/SimpleJetCorrector.h"
-#include "CondFormats/JetMETObjects/interface/FactorizedJetCorrector.h"
-
-#include "CondFormats/JetMETObjects/interface/SimpleJetCorrectionUncertainty.h"
-#include "CondFormats/JetMETObjects/interface/JetCorrectionUncertainty.h"
-
-#include "CondFormats/JetMETObjects/interface/JetResolutionObject.h"
-#include "JetMETCorrections/Modules/interface/JetResolution.h"
-
-#include "DijetHistosFill.h"
-
-#include "TSystem.h"
-
 #include <fstream>
 #include <string>
+
+#include "CondFormats/JetMETObjects/interface/FactorizedJetCorrector.h"
+#include "CondFormats/JetMETObjects/interface/JetCorrectionUncertainty.h"
+#include "CondFormats/JetMETObjects/interface/JetCorrectorParameters.h"
+#include "CondFormats/JetMETObjects/interface/JetResolutionObject.h"
+#include "CondFormats/JetMETObjects/interface/SimpleJetCorrectionUncertainty.h"
+#include "CondFormats/JetMETObjects/interface/SimpleJetCorrector.h"
+#include "JetMETCorrections/Modules/interface/JetResolution.h"
+#include "DijetHistosFill.h"
+#include "TSystem.h"
 
 #define GPU
 //#define LOCAL
@@ -121,26 +117,27 @@ void mk_DijetHistosFill(string dataset = "X", string version = "vX") {
   //gSystem->Exec("rm *.pcm");	
 
   string path = gSystem->pwd();
+  std::cout << "Current path: " << path << std::endl;
 
-  gSystem->AddIncludePath(Form("-I%s/..",path.c_str()));
-  gSystem->AddIncludePath(Form("-I%s/../CondFormats/JetMETObjects/interface",path.c_str()));
+  gSystem->AddIncludePath(Form("-I%s/interface",path.c_str()));
+  gSystem->AddIncludePath(Form("-I%s/CondFormats/JetMETObjects/interface",path.c_str()));
+  gSystem->AddIncludePath(Form("-I%s/JetMETCorrections/Modules/interface",path.c_str()));
 
 #ifdef GPU
   // Compile these libraries into *.so first with root -l -b -q mk_CondFormats.C
-
-  gROOT->ProcessLine(".L ../CondFormats/JetMETObjects/src/Utilities.cc+");
-  gROOT->ProcessLine(".L ../CondFormats/JetMETObjects/src/JetCorrectorParameters.cc+");
-  gROOT->ProcessLine(".L ../CondFormats/JetMETObjects/src/SimpleJetCorrector.cc+");
-  gROOT->ProcessLine(".L ../CondFormats/JetMETObjects/src/FactorizedJetCorrector.cc+");
+  gROOT->ProcessLine(".L CondFormats/JetMETObjects/src/Utilities.cc+");
+  gROOT->ProcessLine(".L CondFormats/JetMETObjects/src/JetCorrectorParameters.cc+");
+  gROOT->ProcessLine(".L CondFormats/JetMETObjects/src/SimpleJetCorrector.cc+");
+  gROOT->ProcessLine(".L CondFormats/JetMETObjects/src/FactorizedJetCorrector.cc+");
   
-  gROOT->ProcessLine(".L ../CondFormats/JetMETObjects/src/SimpleJetCorrectionUncertainty.cc+");
-  gROOT->ProcessLine(".L ../CondFormats/JetMETObjects/src/JetCorrectionUncertainty.cc+");
+  gROOT->ProcessLine(".L CondFormats/JetMETObjects/src/SimpleJetCorrectionUncertainty.cc+");
+  gROOT->ProcessLine(".L CondFormats/JetMETObjects/src/JetCorrectionUncertainty.cc+");
 
-  gROOT->ProcessLine(".L ../CondFormats/JetMETObjects/src/JetResolutionObject.cc+");
+  gROOT->ProcessLine(".L CondFormats/JetMETObjects/src/JetResolutionObject.cc+");
   gROOT->ProcessLine(".L JetMETCorrections/Modules/src/JetResolution.cc+");
 
   cout << "Load library in GPU mode" << endl << flush;
-  gROOT->ProcessLine(".L ../DijetHistosFill.C+g");
+  gROOT->ProcessLine(".L DijetHistosFill.C+g");
 #endif
 
 
