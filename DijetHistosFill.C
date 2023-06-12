@@ -227,21 +227,23 @@ FactorizedJetCorrector *getFJC(string l1="", string l2="", string res="",string 
     cout << s << endl << flush;
     JetCorrectorParameters *pl1 = new JetCorrectorParameters(s);
     v.push_back(*pl1);
+    delete pl1;
   }
   if (l2!="") {
     s = Form("%s/%s.txt",cd,cl2);
     cout << s << endl << flush;
     JetCorrectorParameters *pl2 = new JetCorrectorParameters(s);
     v.push_back(*pl2);
+    delete pl2;
   }
   if (res!="") {
     s = Form("%s/%s.txt",cd,cres);
     cout << s << endl << flush;
     JetCorrectorParameters *pres = new JetCorrectorParameters(s);
     v.push_back(*pres);
+    delete pres;
   }
   FactorizedJetCorrector *jec = new FactorizedJetCorrector(v);
-
   return jec;
 } // getFJC
 
@@ -883,6 +885,7 @@ void DijetHistosFill::Loop() {
    map<string, dijetHistos2*> mhdj2;
    map<string, multijetHistos*> mhmj;
 
+    //for each trigger make a directory and cd into it
    for (int itrg = 0; itrg != ntrg; ++itrg) {
      
      if (debug) cout << "Trigger " << vtrg[itrg] << endl << flush;
@@ -912,6 +915,7 @@ void DijetHistosFill::Loop() {
      assert(nfound==1);
      assert(trgpt!=-1);
 
+     //triggers for Monte Carlo
      if (isMC && doMCtruth && vtrg[itrg]=="HLT_MC") {
 
        if (debug) cout << "Setup MC truth" << endl << flush;
@@ -2556,6 +2560,7 @@ void DijetHistosFill::Loop() {
    } // for jentry
    cout << endl << flush;
 
+
    cout << "Finished looping over " << nevt << " of which " << _ngoodevts
 	<< " passed trigger. Start writing file." << endl << flush;
    fout->Write();
@@ -2614,6 +2619,10 @@ void DijetHistosFill::Loop() {
    cout << Form("Analyzed %d events",_ngoodevts) << endl;
    cout << "Saving these to " << fout->GetName() << " for drawJMENANO.C" << endl;
 
+   //memory deallocation
+   delete jec;
+   delete jer;
+   delete jersf;
    //h2mhtvsmet->Draw("COLZ");
 }  // Loop()
 
