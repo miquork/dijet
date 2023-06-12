@@ -678,6 +678,10 @@ void DijetHistosFill::Loop() {
 
   // Initialize Branches of fChain 
    initBranchstatus(vtrg, ntrg, doTriggerMatch);
+
+   double fwdeta = 3.139;   // was 2.853. 80% (100%) on negative (positive) side
+   double fwdeta0 = 2.964;  // 2.853; // 40 and 260 up
+   initmt(fwdeta, fwdeta0);
     
   // Initialize JEC corrector
    if (debug) cout << "Setting up JEC corrector" << endl << flush;
