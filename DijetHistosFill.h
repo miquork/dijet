@@ -3788,6 +3788,14 @@ public :
    virtual void initBranchstatus(vector<string> vtrg, int ntrg,
                                  bool doTriggerMatch);
    virtual void initmt(double fwdeta, double fwdeta0);
+   virtual void initjec(FactorizedJetCorrector *&jec,
+                        FactorizedJetCorrector *&jecl1rc,
+                        FactorizedJetCorrector *&jersfvspt, string &jerpath,
+                        string &jerpathsf);
+   virtual void initjer(JME::JetResolution *&jer,
+                        JME::JetResolutionScaleFactor *&jersf,
+                        FactorizedJetCorrector *jersfvspt, string jerpath,
+                        string jerpathsf);
    bool LoadJSON();
 };
 

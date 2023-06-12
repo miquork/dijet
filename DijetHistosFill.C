@@ -249,8 +249,7 @@ FactorizedJetCorrector *getFJC(string l1="", string l2="", string res="",string 
 //helper function to setup trigger vector
 // @param void
 // @return vtrg vector of triggers
-vector<string> DijetHistosFill::initvtrg()
-{
+vector<string> DijetHistosFill::initvtrg(){
   vector<string> vtrg;
 
   if (isZB)
@@ -326,7 +325,9 @@ void DijetHistosFill::setBranchStatus(vector<string> b) {
 
 
 //helper function to set all status of branches
-// @param t tree
+// @param vtrg vector of triggers
+// @param ntrg number of triggers
+// @param doTriggerMatch bool to do trigger matching
 // @return void
 void DijetHistosFill::initBranchstatus(vector<string> vtrg, int ntrg,
                                        bool doTriggerMatch ) {
@@ -404,8 +405,7 @@ void DijetHistosFill::initBranchstatus(vector<string> vtrg, int ntrg,
 // @param fwdeta forward eta
 // @param fwdeta0 forward eta 0
 // @return void
-void DijetHistosFill::initmt(double fwdeta, double fwdeta0)
-{
+void DijetHistosFill::initmt(double fwdeta, double fwdeta0){
   mt["HLT_MC"] = range{15, 3000, 0, 5.2};
   mt["HLT_ZeroBias"] = range{15, 3000, 0, 5.2};
 
@@ -451,9 +451,191 @@ void DijetHistosFill::initmt(double fwdeta, double fwdeta0)
   mt["HLT_PFJetFwd500"] = range{600, 6500, fwdeta0, 5.2};
 }
 
+// helper funciton to setup jetcorrector
+// @param jec jet corrector
+// @param jecl1rc jet corrector l1rc
+// @param jersfvspt jet corrector jersfvspt
+// @param jerpath path to jer
+// @param jerpathsf path to jersf
+// @return void
+void DijetHistosFill::initjec(FactorizedJetCorrector  * &jec,
+                              FactorizedJetCorrector * &jecl1rc,
+                              FactorizedJetCorrector * &jersfvspt,
+                              string &jerpath, string &jerpathsf) {
+  // jec = getFJC("","Winter22Run3_V1_MC_L2Relative","","");
+  if (isRun2 == 0) {
+    jec =
+        getFJC("", "Winter22Run3_V1_MC_L2Relative",
+               isMC ? "" : "Winter22Run3_RunC_V2_DATA_L2L3Residual_AK4PFPuppi");
+  }
+  // 2016APV (BCD, EF)
+  if (dataset == "UL2016APVMG") {
+    jec = getFJC("Summer19UL16APV_V7_MC_L1FastJet_AK4PFchs",
+                 "Summer19UL16APV_V7_MC_L2Relative_AK4PFchs", "");
+    jecl1rc = getFJC("Summer19UL16APV_V7_MC_L1RC_AK4PFchs", "", "");
+    jerpath =
+        "JRDatabase/textFiles/Summer20UL16APV_JRV3_MC/"
+        "Summer20UL16APV_JRV3_MC_PtResolution_AK4PFchs.txt";
+    jerpathsf =
+        "JRDatabase/textFiles/Summer20UL16APV_JRV3_MC/"
+        "Summer20UL16APV_JRV3_MC_SF_AK4PFchs.txt";
+    jersfvspt = getFJC("", "Summer20UL2016APV_ZB_v26c_JRV3_MC_SF_AK4PFchs", "");
+  }
+  if (dataset == "UL2016BCD" || dataset == "UL2016BCD_ZB") {
+    jec = getFJC("Summer19UL16APV_RunBCD_V7_DATA_L1FastJet_AK4PFchs",
+                 "Summer19UL16APV_RunBCD_V7_DATA_L2Relative_AK4PFchs",
+                 "Summer19UL16APV_RunBCD_V7_DATA_L2L3Residual_AK4PFchs");
+    jecl1rc = getFJC("Summer19UL16APV_RunBCD_V7_DATA_L1RC_AK4PFchs", "", "");
+  }
+  if (dataset == "UL2016EF" || dataset == "UL2016EF_ZB") {
+    jec = getFJC("Summer19UL16APV_RunEF_V7_DATA_L1FastJet_AK4PFchs",
+                 "Summer19UL16APV_RunEF_V7_DATA_L2Relative_AK4PFchs",
+                 "Summer19UL16APV_RunEF_V7_DATA_L2L3Residual_AK4PFchs");
+    jecl1rc = getFJC("Summer19UL16APV_RunEF_V7_DATA_L1RC_AK4PFchs", "", "");
+  }
+  // 2016 non-APV (GH)
+  if (dataset == "UL2016MG" || dataset == "UL2016Flat") {
+    jec = getFJC("Summer19UL16_V7_MC_L1FastJet_AK4PFchs",
+                 "Summer19UL16_V7_MC_L2Relative_AK4PFchs", "");
+    jecl1rc = getFJC("Summer19UL16_V7_MC_L1RC_AK4PFchs", "", "");
+    // jec = getFJC("Summer20UL16_V1_MC_L1FastJet_AK4PFchs",
+    //		  "Summer20UL16_V1_MC_L2Relative_AK4PFchs","");
+    // jecl1rc = getFJC("Summer20UL16_V1_MC_L1RC_AK4PFchs","","");
+    jerpath =
+        "JRDatabase/textFiles/Summer20UL16_JRV3_MC/"
+        "Summer20UL16_JRV3_MC_PtResolution_AK4PFchs.txt";
+    jerpathsf =
+        "JRDatabase/textFiles/Summer20UL16_JRV3_MC/"
+        "Summer20UL16_JRV3_MC_SF_AK4PFchs.txt";
+    jersfvspt = getFJC("", "Summer20UL2016GH_ZB_v26c_JRV3_MC_SF_AK4PFchs", "");
+  }
+  if (dataset == "UL2016GH" || dataset == "UL2016GH_ZB") {
+    jec = getFJC("Summer19UL16_RunFGH_V7_DATA_L1FastJet_AK4PFchs",
+                 "Summer19UL16_RunFGH_V7_DATA_L2Relative_AK4PFchs",
+                 "Summer19UL16_RunFGH_V7_DATA_L2L3Residual_AK4PFchs");
+    jecl1rc = getFJC("Summer19UL16_RunFGH_V7_DATA_L1RC_AK4PFchs", "", "");
+    // jec = getFJC("Summer20UL16_RunGH_V1_DATA_L1FastJet_AK4PFchs",
+    //"Summer20UL16_RunGH_V1_DATA_L2Relative_AK4PFchs",
+    //"Summer20UL16_RunGH_V1_DATA_L2L3Residual_AK4PFchs");
+    //"Summer19UL16_RunFGH_V7_DATA_L2L3Residual_AK4PFchs");
+    // jecl1rc = getFJC("Summer20UL16_RunGH_V1_DATA_L1RC_AK4PFchs","","");
+  }
+  // 2017
+  if (dataset == "UL2017MG") {
+    jec = getFJC("Summer19UL17_V6_MC_L1FastJet_AK4PFchs",
+                 "Summer19UL17_V6_MC_L2Relative_AK4PFchs", "");
+    jecl1rc = getFJC("Summer19UL17_V6_MC_L1RC_AK4PFchs", "", "");
+    jerpath =
+        "JRDatabase/textFiles/Summer19UL17_JRV3_MC/"
+        "Summer19UL17_JRV3_MC_PtResolution_AK4PFchs.txt";
+    jerpathsf =
+        "JRDatabase/textFiles/Summer19UL17_JRV3_MC/"
+        "Summer19UL17_JRV3_MC_SF_AK4PFchs.txt";
+    jersfvspt = getFJC("", "Summer20UL2017_ZB_v26c_JRV3_MC_SF_AK4PFchs", "");
+  }
+  if (dataset == "UL2017B" || dataset == "UL2017B_ZB") {
+    jec = getFJC("Summer19UL17_RunB_V6_DATA_L1FastJet_AK4PFchs",
+                 "Summer19UL17_RunB_V6_DATA_L2Relative_AK4PFchs",
+                 "Summer19UL17_RunB_V6_DATA_L2L3Residual_AK4PFchs");
+    jecl1rc = getFJC("Summer19UL17_RunB_V6_DATA_L1RC_AK4PFchs", "", "");
+  }
+  if (dataset == "UL2017C" || dataset == "UL2017C_ZB") {
+    jec = getFJC("Summer19UL17_RunC_V6_DATA_L1FastJet_AK4PFchs",
+                 "Summer19UL17_RunC_V6_DATA_L2Relative_AK4PFchs",
+                 "Summer19UL17_RunC_V6_DATA_L2L3Residual_AK4PFchs");
+    jecl1rc = getFJC("Summer19UL17_RunC_V6_DATA_L1RC_AK4PFchs", "", "");
+  }
+  if (dataset == "UL2017D" || dataset == "UL2017D_ZB") {
+    jec = getFJC("Summer19UL17_RunD_V6_DATA_L1FastJet_AK4PFchs",
+                 "Summer19UL17_RunD_V6_DATA_L2Relative_AK4PFchs",
+                 "Summer19UL17_RunD_V6_DATA_L2L3Residual_AK4PFchs");
+    jecl1rc = getFJC("Summer19UL17_RunD_V6_DATA_L1RC_AK4PFchs", "", "");
+  }
+  if (dataset == "UL2017E" || dataset == "UL2017E_ZB") {
+    jec = getFJC("Summer19UL17_RunE_V6_DATA_L1FastJet_AK4PFchs",
+                 "Summer19UL17_RunE_V6_DATA_L2Relative_AK4PFchs",
+                 "Summer19UL17_RunE_V6_DATA_L2L3Residual_AK4PFchs");
+    jecl1rc = getFJC("Summer19UL17_RunE_V6_DATA_L1RC_AK4PFchs", "", "");
+  }
+  if (dataset == "UL2017F" || dataset == "UL2017F_ZB") {
+    jec = getFJC("Summer19UL17_RunF_V6_DATA_L1FastJet_AK4PFchs",
+                 "Summer19UL17_RunF_V6_DATA_L2Relative_AK4PFchs",
+                 "Summer19UL17_RunF_V6_DATA_L2L3Residual_AK4PFchs");
+    jecl1rc = getFJC("Summer19UL17_RunF_V6_DATA_L1RC_AK4PFchs", "", "");
+  }
+  // 2018
+  if (dataset == "UL2018MG") {
+    jec = getFJC("Summer19UL18_V5_MC_L1FastJet_AK4PFchs",
+                 "Summer19UL18_V5_MC_L2Relative_AK4PFchs", "");
+    jecl1rc = getFJC("Summer19UL18_V5_MC_L1RC_AK4PFchs", "", "");
+    jerpath =
+        "JRDatabase/textFiles/Summer19UL18_JRV2_MC/"
+        "Summer19UL18_JRV2_MC_PtResolution_AK4PFchs.txt";
+    jerpathsf =
+        "JRDatabase/textFiles/Summer19UL18_JRV2_MC/"
+        "Summer19UL18_JRV2_MC_SF_AK4PFchs.txt";
+    jersfvspt = getFJC("", "Summer20UL2018_ZB_v26c_JRV3_MC_SF_AK4PFchs", "");
+  }
+  if (dataset == "UL2018A" || dataset == "UL2018A_ZB") {
+    jec = getFJC("Summer19UL18_RunA_V5_DATA_L1FastJet_AK4PFchs",
+                 "Summer19UL18_RunA_V5_DATA_L2Relative_AK4PFchs",
+                 "Summer19UL18_RunA_V5_DATA_L2L3Residual_AK4PFchs");
+    jecl1rc = getFJC("Summer19UL18_RunA_V5_DATA_L1RC_AK4PFchs", "", "");
+  }
+  if (dataset == "UL2018B" || dataset == "UL2018B_ZB") {
+    jec = getFJC("Summer19UL18_RunB_V5_DATA_L1FastJet_AK4PFchs",
+                 "Summer19UL18_RunB_V5_DATA_L2Relative_AK4PFchs",
+                 "Summer19UL18_RunB_V5_DATA_L2L3Residual_AK4PFchs");
+    jecl1rc = getFJC("Summer19UL18_RunB_V5_DATA_L1RC_AK4PFchs", "", "");
+  }
+  if (dataset == "UL2018C" || dataset == "UL2018C_ZB") {
+    jec = getFJC("Summer19UL18_RunC_V5_DATA_L1FastJet_AK4PFchs",
+                 "Summer19UL18_RunC_V5_DATA_L2Relative_AK4PFchs",
+                 "Summer19UL18_RunC_V5_DATA_L2L3Residual_AK4PFchs");
+    jecl1rc = getFJC("Summer19UL18_RunC_V5_DATA_L1RC_AK4PFchs", "", "");
+  }
+  if (dataset == "UL2018D" || dataset == "UL2018D_ZB" ||
+      dataset == "UL2018D1" || dataset == "UL2018D2") {
+    jec = getFJC("Summer19UL18_RunD_V5_DATA_L1FastJet_AK4PFchs",
+                 "Summer19UL18_RunD_V5_DATA_L2Relative_AK4PFchs",
+                 "Summer19UL18_RunD_V5_DATA_L2L3Residual_AK4PFchs");
+    jecl1rc = getFJC("Summer19UL18_RunD_V5_DATA_L1RC_AK4PFchs", "", "");
+  }
 
-void DijetHistosFill::Loop()
-{
+  if (!jec || !jecl1rc)
+    cout << "Missing files for " << dataset << endl << flush;
+  assert(jec);
+  assert(jecl1rc);
+}
+
+// helper function to setup jer for smearing
+// @param jer: jet resolution object
+// @param jersf: jet resolution scale factor object
+// @return void
+void DijetHistosFill::initjer(JME::JetResolution * &jer,
+                              JME::JetResolutionScaleFactor * &jersf, 
+                              FactorizedJetCorrector *jersfvspt, string jerpath, string jerpathsf){
+   if (isMC && smearJets) {
+     cout << jerpath << endl << flush;
+     if (!useJERSFvsPt) cout << jerpathsf << endl << flush;
+     if (jerpath=="" || (jerpathsf=="" && !useJERSFvsPt))
+       cout << "Missing JER file paths for " << dataset << endl << flush;
+     assert(jerpath!="");
+     assert(jerpathsf!="" || useJERSFvsPt);
+     assert(jersfvspt || !useJERSFvsPt);
+     jer = new JME::JetResolution(jerpath.c_str());
+     if (!useJERSFvsPt)
+       jersf = new JME::JetResolutionScaleFactor(jerpathsf.c_str());
+     if (!jer || (!jersf && !useJERSFvsPt) || (!jersfvspt && useJERSFvsPt))
+       cout << "Missing JER files for " << dataset << endl << flush;
+   }
+}
+
+
+// Main event loop function
+//  @param void
+//  @return void
+void DijetHistosFill::Loop() {
   // $ what here can go?
 //   In a ROOT session, you can do:
 //      root> .L DijetHistosFill.C
@@ -480,176 +662,36 @@ void DijetHistosFill::Loop()
 //by  b_branchname->GetEntry(ientry); //read only this branch
    if (fChain == 0) return;
 
+   //Start timer for full job
    TStopwatch fulltime, laptime;
    fulltime.Start();
    TDatime bgn;
    int nlap(0);
    
-   // Listing of available triggers
+   // Initialize list of triggers 
    vector<string> vtrg  =  initvtrg();
-   int ntrg = vtrg.size();
+   int ntrg = vtrg.size(); // number of triggers
   
-  double Jet_l1rcFactor[nJetMax]; // For L1L2L3-RC type-I MET
-   // Trigger studies => TrigObjAK4 later (fixed now)
-    bool doTriggerMatch = false;
-    nTrigObjJMEAK4 = 0;  // turn off
+   double Jet_l1rcFactor[nJetMax]; // For L1L2L3-RC type-I MET
+   bool doTriggerMatch = false;
+   nTrigObjJMEAK4 = 0;  // turn off
 
-    initBranchstatus(vtrg, ntrg, doTriggerMatch);
+  // Initialize Branches of fChain 
+   initBranchstatus(vtrg, ntrg, doTriggerMatch);
     
-    if (debug) cout << "Setting up JEC corrector" << endl << flush;
-
-      // NB: could implement time dependence as in jetphys/IOV.h
+  // Initialize JEC corrector
+   if (debug) cout << "Setting up JEC corrector" << endl << flush;
    FactorizedJetCorrector *jec(0), *jecl1rc(0), *jersfvspt(0);
    string jerpath(""), jerpathsf("");
-   //jec = getFJC("","Winter22Run3_V1_MC_L2Relative","","");
-   if (isRun2==0) {
-     jec = getFJC("","Winter22Run3_V1_MC_L2Relative",
-		  isMC ? "":"Winter22Run3_RunC_V2_DATA_L2L3Residual_AK4PFPuppi");
-   }
-   // 2016APV (BCD, EF)
-   if (dataset=="UL2016APVMG") {
-     jec = getFJC("Summer19UL16APV_V7_MC_L1FastJet_AK4PFchs",
-		  "Summer19UL16APV_V7_MC_L2Relative_AK4PFchs","");
-     jecl1rc = getFJC("Summer19UL16APV_V7_MC_L1RC_AK4PFchs","","");
-     jerpath = "JRDatabase/textFiles/Summer20UL16APV_JRV3_MC/Summer20UL16APV_JRV3_MC_PtResolution_AK4PFchs.txt";
-     jerpathsf = "JRDatabase/textFiles/Summer20UL16APV_JRV3_MC/Summer20UL16APV_JRV3_MC_SF_AK4PFchs.txt";
-     jersfvspt = getFJC("","Summer20UL2016APV_ZB_v26c_JRV3_MC_SF_AK4PFchs","");
-   }
-   if (dataset=="UL2016BCD" || dataset=="UL2016BCD_ZB") {
-     jec = getFJC("Summer19UL16APV_RunBCD_V7_DATA_L1FastJet_AK4PFchs",
-		  "Summer19UL16APV_RunBCD_V7_DATA_L2Relative_AK4PFchs",
-		  "Summer19UL16APV_RunBCD_V7_DATA_L2L3Residual_AK4PFchs");
-     jecl1rc = getFJC("Summer19UL16APV_RunBCD_V7_DATA_L1RC_AK4PFchs","","");
-   }
-   if (dataset=="UL2016EF" || dataset=="UL2016EF_ZB") {
-     jec = getFJC("Summer19UL16APV_RunEF_V7_DATA_L1FastJet_AK4PFchs",
-		  "Summer19UL16APV_RunEF_V7_DATA_L2Relative_AK4PFchs",
-		  "Summer19UL16APV_RunEF_V7_DATA_L2L3Residual_AK4PFchs");
-     jecl1rc = getFJC("Summer19UL16APV_RunEF_V7_DATA_L1RC_AK4PFchs","","");
-   }
-   // 2016 non-APV (GH)
-   if (dataset=="UL2016MG" || dataset=="UL2016Flat") {
-     jec = getFJC("Summer19UL16_V7_MC_L1FastJet_AK4PFchs",
-		  "Summer19UL16_V7_MC_L2Relative_AK4PFchs","");
-     jecl1rc = getFJC("Summer19UL16_V7_MC_L1RC_AK4PFchs","","");
-     //jec = getFJC("Summer20UL16_V1_MC_L1FastJet_AK4PFchs",
-     //		  "Summer20UL16_V1_MC_L2Relative_AK4PFchs","");
-     //jecl1rc = getFJC("Summer20UL16_V1_MC_L1RC_AK4PFchs","","");
-     jerpath = "JRDatabase/textFiles/Summer20UL16_JRV3_MC/Summer20UL16_JRV3_MC_PtResolution_AK4PFchs.txt";
-     jerpathsf = "JRDatabase/textFiles/Summer20UL16_JRV3_MC/Summer20UL16_JRV3_MC_SF_AK4PFchs.txt";
-     jersfvspt = getFJC("","Summer20UL2016GH_ZB_v26c_JRV3_MC_SF_AK4PFchs","");
-   }
-   if (dataset=="UL2016GH" || dataset=="UL2016GH_ZB") {
-     jec = getFJC("Summer19UL16_RunFGH_V7_DATA_L1FastJet_AK4PFchs",
-		  "Summer19UL16_RunFGH_V7_DATA_L2Relative_AK4PFchs",
-		  "Summer19UL16_RunFGH_V7_DATA_L2L3Residual_AK4PFchs");
-     jecl1rc = getFJC("Summer19UL16_RunFGH_V7_DATA_L1RC_AK4PFchs","","");
-     //jec = getFJC("Summer20UL16_RunGH_V1_DATA_L1FastJet_AK4PFchs",
-     //"Summer20UL16_RunGH_V1_DATA_L2Relative_AK4PFchs",
-     //"Summer20UL16_RunGH_V1_DATA_L2L3Residual_AK4PFchs");
-     //"Summer19UL16_RunFGH_V7_DATA_L2L3Residual_AK4PFchs");
-     //jecl1rc = getFJC("Summer20UL16_RunGH_V1_DATA_L1RC_AK4PFchs","","");
-   }
-   // 2017
-   if (dataset=="UL2017MG") {
-     jec = getFJC("Summer19UL17_V6_MC_L1FastJet_AK4PFchs",
-		  "Summer19UL17_V6_MC_L2Relative_AK4PFchs","");
-     jecl1rc = getFJC("Summer19UL17_V6_MC_L1RC_AK4PFchs","","");
-     jerpath = "JRDatabase/textFiles/Summer19UL17_JRV3_MC/Summer19UL17_JRV3_MC_PtResolution_AK4PFchs.txt";
-     jerpathsf = "JRDatabase/textFiles/Summer19UL17_JRV3_MC/Summer19UL17_JRV3_MC_SF_AK4PFchs.txt";
-     jersfvspt = getFJC("","Summer20UL2017_ZB_v26c_JRV3_MC_SF_AK4PFchs","");
-   }
-   if (dataset=="UL2017B" || dataset=="UL2017B_ZB") {
-     jec = getFJC("Summer19UL17_RunB_V6_DATA_L1FastJet_AK4PFchs",
-		  "Summer19UL17_RunB_V6_DATA_L2Relative_AK4PFchs",
-		  "Summer19UL17_RunB_V6_DATA_L2L3Residual_AK4PFchs");
-     jecl1rc = getFJC("Summer19UL17_RunB_V6_DATA_L1RC_AK4PFchs","","");
-   }
-   if (dataset=="UL2017C" || dataset=="UL2017C_ZB") {
-     jec = getFJC("Summer19UL17_RunC_V6_DATA_L1FastJet_AK4PFchs",
-		  "Summer19UL17_RunC_V6_DATA_L2Relative_AK4PFchs",
-		  "Summer19UL17_RunC_V6_DATA_L2L3Residual_AK4PFchs");
-     jecl1rc = getFJC("Summer19UL17_RunC_V6_DATA_L1RC_AK4PFchs","","");
-   }
-   if (dataset=="UL2017D" || dataset=="UL2017D_ZB") {
-     jec = getFJC("Summer19UL17_RunD_V6_DATA_L1FastJet_AK4PFchs",
-		  "Summer19UL17_RunD_V6_DATA_L2Relative_AK4PFchs",
-		  "Summer19UL17_RunD_V6_DATA_L2L3Residual_AK4PFchs");
-     jecl1rc = getFJC("Summer19UL17_RunD_V6_DATA_L1RC_AK4PFchs","","");
-   }
-   if (dataset=="UL2017E" || dataset=="UL2017E_ZB") {
-     jec = getFJC("Summer19UL17_RunE_V6_DATA_L1FastJet_AK4PFchs",
-		  "Summer19UL17_RunE_V6_DATA_L2Relative_AK4PFchs",
-		  "Summer19UL17_RunE_V6_DATA_L2L3Residual_AK4PFchs");
-     jecl1rc = getFJC("Summer19UL17_RunE_V6_DATA_L1RC_AK4PFchs","","");
-   }
-   if (dataset=="UL2017F" || dataset=="UL2017F_ZB") {
-     jec = getFJC("Summer19UL17_RunF_V6_DATA_L1FastJet_AK4PFchs",
-		  "Summer19UL17_RunF_V6_DATA_L2Relative_AK4PFchs",
-		  "Summer19UL17_RunF_V6_DATA_L2L3Residual_AK4PFchs");
-     jecl1rc = getFJC("Summer19UL17_RunF_V6_DATA_L1RC_AK4PFchs","","");
-   }
-   // 2018
-   if (dataset=="UL2018MG") {
-     jec = getFJC("Summer19UL18_V5_MC_L1FastJet_AK4PFchs",
-		  "Summer19UL18_V5_MC_L2Relative_AK4PFchs","");
-     jecl1rc = getFJC("Summer19UL18_V5_MC_L1RC_AK4PFchs","","");
-     jerpath = "JRDatabase/textFiles/Summer19UL18_JRV2_MC/Summer19UL18_JRV2_MC_PtResolution_AK4PFchs.txt";
-     jerpathsf = "JRDatabase/textFiles/Summer19UL18_JRV2_MC/Summer19UL18_JRV2_MC_SF_AK4PFchs.txt";
-     jersfvspt = getFJC("","Summer20UL2018_ZB_v26c_JRV3_MC_SF_AK4PFchs","");
-   }
-   if (dataset=="UL2018A" || dataset=="UL2018A_ZB") {
-     jec = getFJC("Summer19UL18_RunA_V5_DATA_L1FastJet_AK4PFchs",
-		  "Summer19UL18_RunA_V5_DATA_L2Relative_AK4PFchs",
-		  "Summer19UL18_RunA_V5_DATA_L2L3Residual_AK4PFchs");
-     jecl1rc = getFJC("Summer19UL18_RunA_V5_DATA_L1RC_AK4PFchs","","");
-   }
-   if (dataset=="UL2018B" || dataset=="UL2018B_ZB") {
-     jec = getFJC("Summer19UL18_RunB_V5_DATA_L1FastJet_AK4PFchs",
-		  "Summer19UL18_RunB_V5_DATA_L2Relative_AK4PFchs",
-		  "Summer19UL18_RunB_V5_DATA_L2L3Residual_AK4PFchs");
-     jecl1rc = getFJC("Summer19UL18_RunB_V5_DATA_L1RC_AK4PFchs","","");
-   }
-   if (dataset=="UL2018C" || dataset=="UL2018C_ZB") {
-     jec = getFJC("Summer19UL18_RunC_V5_DATA_L1FastJet_AK4PFchs",
-		  "Summer19UL18_RunC_V5_DATA_L2Relative_AK4PFchs",
-		  "Summer19UL18_RunC_V5_DATA_L2L3Residual_AK4PFchs");
-     jecl1rc = getFJC("Summer19UL18_RunC_V5_DATA_L1RC_AK4PFchs","","");
-   }
-   if (dataset=="UL2018D" || dataset=="UL2018D_ZB" ||
-       dataset=="UL2018D1" || dataset=="UL2018D2") {
-     jec = getFJC("Summer19UL18_RunD_V5_DATA_L1FastJet_AK4PFchs",
-		  "Summer19UL18_RunD_V5_DATA_L2Relative_AK4PFchs",
-		  "Summer19UL18_RunD_V5_DATA_L2L3Residual_AK4PFchs");
-     jecl1rc = getFJC("Summer19UL18_RunD_V5_DATA_L1RC_AK4PFchs","","");
-   }
-
-   if (!jec || !jecl1rc)
-     cout << "Missing files for " << dataset << endl << flush;
-   assert(jec);
-   assert(jecl1rc);
-
-   if (debug) cout << "Setting up JER smearing" << endl << flush;
+   initjec(jec, jecl1rc, jersfvspt, jerpath, jerpathsf);
    
-   // Smear JER
-   // NB: could implement time dependence as in jetphys/IOV.h
+  // Initialize JER smearing
+   if (debug) cout << "Setting up JER smearing" << endl << flush;
    JME::JetResolution *jer(0);
    JME::JetResolutionScaleFactor *jersf(0);
-   if (isMC && smearJets) {
-     cout << jerpath << endl << flush;
-     if (!useJERSFvsPt) cout << jerpathsf << endl << flush;
-     if (jerpath=="" || (jerpathsf=="" && !useJERSFvsPt))
-       cout << "Missing JER file paths for " << dataset << endl << flush;
-     assert(jerpath!="");
-     assert(jerpathsf!="" || useJERSFvsPt);
-     assert(jersfvspt || !useJERSFvsPt);
-     jer = new JME::JetResolution(jerpath.c_str());
-     if (!useJERSFvsPt)
-       jersf = new JME::JetResolutionScaleFactor(jerpathsf.c_str());
-     if (!jer || (!jersf && !useJERSFvsPt) || (!jersfvspt && useJERSFvsPt))
-       cout << "Missing JER files for " << dataset << endl << flush;
-   }
+    initjer(jer, jersf,jersfvspt, jerpath, jerpathsf);
 
+  // Initialize Vectors for computations
    TLorentzVector p4rawmet, p4t1met, p4mht, p4l1rc, p4dj;
    //TLorentzVector p4, p4s, p4mht, p4mht2, p4mhtc, p4mhtc3, p4t, p4p;
    TLorentzVector p4, /*p4raw,*/ p4g, p4s, p4t, p4p;
@@ -661,6 +703,8 @@ void DijetHistosFill::Loop()
    TLorentzVector p4m0, p4m2, p4mn, p4mu;//, p4mo;
    TLorentzVector p4m3, p4mn3, p4mu3;
    TLorentzVector p4corrjets, p4rcjets, p4rawjets;
+
+   // initialize output file
    TFile *fout = new TFile(Form("rootfiles/jmenano_%s_out_%s_%s.root",
 				isMC ? "mc" : "data",
 				dataset.c_str(), version.c_str()),
@@ -764,6 +808,7 @@ void DijetHistosFill::Loop()
    TH2D *h2dphi = new TH2D("h2dphi","#Delta#phi vs #eta;#eta;#Delta#phi",
 			   nx,vx,126,-TMath::TwoPi(),+TMath::TwoPi());
 
+   // $ What here can go?
    // L2Res profiles for HDM method
    // coding: m0=MPF, m2=DB, mn=n-jet, mu=uncl. (observable)
    //         a=PtAve, t=PtTag, p=PtProbe (binning)
@@ -772,6 +817,7 @@ void DijetHistosFill::Loop()
    fout->cd("Refs");
    TH1D *hnjet = new TH1D("hnjet","hnjet",500,0,500);
 
+    // $ What here can go?
    /*
    // PF composition plots
    // Copy L2Res histograms for multiple pT bins
@@ -877,6 +923,7 @@ void DijetHistosFill::Loop()
        
        string &t = vtrg[itrg];
        mhmc[t] = h;
+       // $ What here can go?
        //h->trg = t;
        //h->trgpt = trgpt;
        
@@ -1479,6 +1526,7 @@ void DijetHistosFill::Loop()
    Float_t Jet_genDR[nJetMax];
    //Float_t Jet_smearFactor[nJetMax];
 
+   // Main event loop (over nentries)
    Long64_t nbytes = 0, nb = 0;
    for (Long64_t jentry=0; jentry<nentries;jentry++) {
       Long64_t ientry = LoadTree(jentry);
@@ -2567,8 +2615,7 @@ void DijetHistosFill::Loop()
    cout << "Saving these to " << fout->GetName() << " for drawJMENANO.C" << endl;
 
    //h2mhtvsmet->Draw("COLZ");
-} // Loop()
-
+}  // Loop()
 
 bool DijetHistosFill::LoadJSON()
 {
