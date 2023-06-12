@@ -227,21 +227,18 @@ FactorizedJetCorrector *getFJC(string l1="", string l2="", string res="",string 
     cout << s << endl << flush;
     JetCorrectorParameters *pl1 = new JetCorrectorParameters(s);
     v.push_back(*pl1);
-    delete pl1;
   }
   if (l2!="") {
     s = Form("%s/%s.txt",cd,cl2);
     cout << s << endl << flush;
     JetCorrectorParameters *pl2 = new JetCorrectorParameters(s);
     v.push_back(*pl2);
-    delete pl2;
   }
   if (res!="") {
     s = Form("%s/%s.txt",cd,cres);
     cout << s << endl << flush;
     JetCorrectorParameters *pres = new JetCorrectorParameters(s);
     v.push_back(*pres);
-    delete pres;
   }
   FactorizedJetCorrector *jec = new FactorizedJetCorrector(v);
   return jec;
@@ -633,6 +630,7 @@ void DijetHistosFill::initjer(JME::JetResolution * &jer,
    }
 }
 
+// helper function to setup 
 
 // Main event loop function
 //  @param void
@@ -691,7 +689,7 @@ void DijetHistosFill::Loop() {
    if (debug) cout << "Setting up JER smearing" << endl << flush;
    JME::JetResolution *jer(0);
    JME::JetResolutionScaleFactor *jersf(0);
-    initjer(jer, jersf,jersfvspt, jerpath, jerpathsf);
+   initjer(jer, jersf,jersfvspt, jerpath, jerpathsf);
 
   // Initialize Vectors for computations
    TLorentzVector p4rawmet, p4t1met, p4mht, p4l1rc, p4dj;
@@ -2620,9 +2618,6 @@ void DijetHistosFill::Loop() {
    cout << "Saving these to " << fout->GetName() << " for drawJMENANO.C" << endl;
 
    //memory deallocation
-   delete jec;
-   delete jer;
-   delete jersf;
    //h2mhtvsmet->Draw("COLZ");
 }  // Loop()
 
