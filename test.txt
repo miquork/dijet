@@ -18,11 +18,11 @@ Opened file: /media/DATA/JME_NANO_DATA/UL2018/JetHT_Run2018A-UL2018_MiniAODv2_JM
 .n=0
 
 Processed 0 events (0.0%) in 1 sec. (0 sec. for last 0)...........
-Processed 100000 events (34.9%) in 64 sec. (64 sec. for last 100000)
-Estimated runtime:  183 sec.  (183 sec. for last 100000)
+Processed 100000 events (34.9%) in 59 sec. (59 sec. for last 100000)
+Estimated runtime:  170 sec.  (170 sec. for last 100000)
 ....................
-Processed 286810 events (100.0%) in 181 sec. (118 sec. for last 186810)
-Estimated runtime:  181 sec.  (181 sec. for last 186810)
+Processed 286810 events (100.0%) in 169 sec. (110 sec. for last 186810)
+Estimated runtime:  169 sec.  (169 sec. for last 186810)
 
 Finished looping over 286811 of which 92554 passed trigger. Start writing file.
 File written and closed.

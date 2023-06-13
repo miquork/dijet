@@ -21,7 +21,131 @@
 #include "CondFormats/JetMETObjects/interface/JetCorrectorParameters.h"
 #include "CondFormats/JetMETObjects/interface/JetResolutionObject.h"
 #include "JetMETCorrections/Modules/interface/JetResolution.h"
+#include "TProfile2D.h"
 using namespace std;
+
+// CLASS DEFINITIONS
+class mctruthHistos {
+ public:
+  TH2D *h2pteta, *h2pteta_gen, *h2pteta_rec;
+  TProfile2D *p2jes, *p2jsf, *p2r, *p2effz, *p2eff, *p2pur;
+};
+
+class jetvetoHistos {
+ public:
+  // Basic information about the trigger
+  string trg;
+  int trgpt;
+  double ptmin, ptmax, absetamin, absetamax;
+
+  // Jet counts
+  TH2D *h2pteta_all, *h2pteta_sel, *h2phieta;
+  TH2D *h2ptaeta_all, *h2ptaeta_sel, *h2phieta_ave;
+  TH2D *h2ptteta_all, *h2ptteta_sel, *h2phieta_tag;
+
+  // Balancing
+  TProfile2D *p2asymm;
+
+  // (Optional) composition plots
+  TProfile2D *p2chf, *p2nhf, *p2nef;
+  TProfile2D *p2chftp, *p2nhftp, *p2neftp;
+};
+
+class incjetHistos {
+ public:
+  // Basic information about the trigger
+  string trg;
+  int trgpt;
+  double ptmin, ptmax, absetamin, absetamax;
+
+  static const int ny = 10;
+  TH2D *h2pteta_all;
+  TH2D *h2pteta_sel;
+  TH1D *hpt13;
+  TH1D *vpt[ny];
+
+  // (Optional) composition plots
+  TProfile2D *p2pt, *p2rho, *p2chf, *p2nef, *p2nhf, *p2cef, *p2muf;
+  TProfile *ppt13, *prho13, *pchf13, *pnef13, *pnhf13, *pcef13, *pmuf13;
+};
+
+class dijetHistos {
+ public:
+  // Basic information about the trigger
+  string trg;
+  int trgpt;
+  double ptmin, ptmax, absetamin, absetamax;
+
+  TH2D *h2pteta_aball, *h2pteta_absel;
+  TH2D *h2pteta_adall, *h2pteta_adsel;
+  TH2D *h2pteta_tcall, *h2pteta_tcsel;
+  TH2D *h2pteta_pfall, *h2pteta_pfsel;
+  TProfile2D *p2resab, *p2resad, *p2restc, *p2respf;  // JEC L2L3Res for undoing
+  TProfile2D *p2m0, *p2m0x, *p2m2, *p2m2x;            // JER MPFX, DBX methods
+  TProfile2D *p2m0ab, *p2m2ab, *p2mnab, *p2muab;      // pT,avp (bisector)
+  TProfile2D *p2m0ad, *p2m2ad, *p2mnad, *p2muad;      // pT,ave (dijet axis)
+  TProfile2D *p2m0tc, *p2m2tc, *p2mntc, *p2mutc;      // pT,tag (central)
+  TProfile2D *p2m0pf, *p2m2pf, *p2mnpf, *p2mupf;      // pt,probe (forward)
+
+  // (Optional) composition plots
+  TProfile2D *p2pt, *p2rho, *p2chf, *p2nef, *p2nhf, *p2cef,
+      *p2muf;  // probe,avp
+  TProfile *ppt13, *prho13, *pchf13, *pnef13, *pnhf13, *pcef13, *pmuf13;  // tag
+};
+
+class dijetHistos2 {
+ public:
+  // Basic information about the trigger
+  string trg;
+  int trgpt;
+  double ptmin, ptmax, absetamin, absetamax;
+
+  TH2D *h2pteta;
+  TProfile2D *p2res, *p2m0, *p2m2, *p2mn, *p2mu;
+  TProfile2D *p2m0x, *p2m2x;
+
+  // Extra for FSR studies
+  TProfile2D *p2mnu, *p2mnx, *p2mux, *p2mnux;
+  TH2D *h2ptetatc, *h2ptetapf;
+  TProfile2D *p2restc, *p2m0tc, *p2m2tc, *p2mntc, *p2mutc;  // pT,tag (central)
+  TProfile2D *p2respf, *p2m0pf, *p2m2pf, *p2mnpf,
+      *p2mupf;  // pT,probe (forward)
+
+  // Smearing controls
+  TProfile2D *p2jsf, *p2jsftc, *p2jsfpf;
+};
+
+class multijetHistos {
+ public:
+  // Basic information about the trigger
+  string trg;
+  int trgpt;
+  double ptmin, ptmax, absetamin, absetamax;
+
+  TProfile *ptleada, *ptleadm, *ptleadl, *ptleadr;
+  TProfile *pcrecoila, *pcrecoilm, *pcrecoill, *pcrecoilr;
+  TH1D *hpta_all, *hptm_all, *hptl_all, *hptr_all;
+  TH1D *hpta_sel, *hptm_sel, *hptl_sel, *hptr_sel;
+  TProfile *presa, *presm, *presl, *presr;
+  TProfile *pm0a, *pm2a, *pmna, *pmua;  // *pmoa; // pT,avp3
+  TProfile *pm0m, *pm2m, *pmnm, *pmum;  // *pmom; // pT,ave
+  TProfile *pm0l, *pm2l, *pmnl, *pmul;  //*pmol; // pT,tag
+  TProfile *pm0r, *pm2r, *pmnr, *pmur;  // *pmor; // pT,probe
+
+  // (Optional) 2D recoils
+  TH2D *h2recoila, *h2recoilm, *h2recoill, *h2recoilr;
+
+  // (Optional) composition plots
+  TProfile *ppt13, *prho13, *pchf13, *pnef13, *pnhf13, *pcef13,
+      *pmuf13;  // lead pT,avp
+  TProfile *ppt25, *prho25, *pchf25, *pnef25, *pnhf25, *pcef25,
+      *pmuf25;  // recoil,pT,avp
+
+  // (Optional) Controls
+  TH2D *h2m0a;
+  TH2D *h2m2a;
+  TH1D *hcosdphi;
+};
 
 // Header file for the classes stored in the TTree if any.
 
@@ -3796,6 +3920,15 @@ public :
                         JME::JetResolutionScaleFactor *&jersf,
                         FactorizedJetCorrector *jersfvspt, string jerpath,
                         string jerpathsf);
+   virtual void inithist(
+       vector<string> &vtrg, int itrg, TFile *&fout, TDirectory *&dout,
+       int trgpt, int nxd, const double vxd[], double nptd, const double vptd[],
+       double npti, const double vpti[], double npt, const double vpt[], int nx,
+       const double vx[], int ny, const double vy[], int nz, const double vz[],
+       map<string, mctruthHistos *> &mhmc, map<string, jetvetoHistos *> &mhjv,
+       map<string, incjetHistos *> &mhij, map<string, dijetHistos *> &mhdj,
+       map<string, dijetHistos2 *> &mhdj2, map<string, multijetHistos *> &mhmj);
+
    bool LoadJSON();
 };
 
