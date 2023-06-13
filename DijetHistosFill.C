@@ -1,20 +1,21 @@
 #define DijetHistosFill_cxx
-#include "DijetHistosFill.h"
+#include <TCanvas.h>
 #include <TH2.h>
 #include <TStyle.h>
-#include <TCanvas.h>
-#include "TLorentzVector.h"
+
+#include <fstream>
+#include <iostream>
+#include <map>
+#include <set>
+#include <string>
+
+#include "DijetHistosFill.h"
 #include "TH2D.h"
+#include "TLorentzVector.h"
 #include "TProfile.h"
 #include "TProfile2D.h"
 #include "TStopwatch.h"
-
-#include <iostream>
-#include <fstream>
-#include <set>
-#include <map>
-#include <string>
-//#include <utility>
+// #include <utility>
 #include <random>
 
 // MC triggers (slow) or not (faster)
@@ -22,45 +23,44 @@ bool doMCtrigOnly = true;
 
 // JER smearing (JER SF)
 bool smearJets = true;
-bool useJERSFvsPt = true; // new file format
+bool useJERSFvsPt = true;  // new file format
 int smearNMax = 3;
 std::uint32_t _seed;
 std::mt19937 _mersennetwister;
 
 // Activate modules
-bool doJetveto = true;   // eta-phi maps
+bool doJetveto = true;  // eta-phi maps
 bool doMCtruth = true;
 bool doIncjet = true;    // inclusive jets
 bool doDijet = true;     // dijet selection
-bool doDijet2 = true;     // dijet selection (DESY style)
+bool doDijet2 = true;    // dijet selection (DESY style)
 bool doMultijet = true;  // multijet selection
 
 // Core additions
-bool doPFComposition = true; // jetveto / incjet / dijet / multijet
+bool doPFComposition = true;  // jetveto / incjet / dijet / multijet
 bool doDijetJER = true;
 
 // Additional variants and controls
 bool doJetvetoVariants = false;
 bool doMultijetControl = true;
 bool doMultijet2Drecoil = true;
-bool doDijet2NM = false;//true;
-bool doJetID = false; // add JetID class
+bool doDijet2NM = false;  // true;
+bool doJetID = false;     // add JetID class
 
-bool debug = false; // general debug
-bool debugevent = false; // per-event debug
+bool debug = false;       // general debug
+bool debugevent = false;  // per-event debug
 
 // Maximum asymmetry of 2/3 corresponds to x2 ratio of tag and probe
 // Permit ~0.7 extra scaling to allow for HF L3Res
-const double maxa = 10; // no cut with 10
-
+const double maxa = 10;  // no cut with 10
 
 // UTILITIES
 double DELTAPHI(double phi1, double phi2) {
-  double dphi = fabs(phi1-phi2);
+  double dphi = fabs(phi1 - phi2);
   return (dphi <= TMath::Pi() ? dphi : TMath::TwoPi() - dphi);
 }
 double DELTAR(double phi1, double phi2, double eta1, double eta2) {
-  return sqrt(pow(DELTAPHI(phi1,phi2),2) + pow(eta1-eta2,2));
+  return sqrt(pow(DELTAPHI(phi1, phi2), 2) + pow(eta1 - eta2, 2));
 }
 
 // Hardcoded pT, eta thresholds for each trigger
@@ -72,26 +72,23 @@ struct range {
   double absetamax;
 };
 
-//map from trigger name to range
+// map from trigger name to range
 std::map<std::string, struct range> mt;
-
 
 // CLASS DEFINITIONS
 class mctruthHistos {
-public:
-
+ public:
   TH2D *h2pteta, *h2pteta_gen, *h2pteta_rec;
   TProfile2D *p2jes, *p2jsf, *p2r, *p2effz, *p2eff, *p2pur;
 };
 
 class jetvetoHistos {
-public:
-
+ public:
   // Basic information about the trigger
   string trg;
   int trgpt;
   double ptmin, ptmax, absetamin, absetamax;
-  
+
   // Jet counts
   TH2D *h2pteta_all, *h2pteta_sel, *h2phieta;
   TH2D *h2ptaeta_all, *h2ptaeta_sel, *h2phieta_ave;
@@ -106,8 +103,7 @@ public:
 };
 
 class incjetHistos {
-public:
-
+ public:
   // Basic information about the trigger
   string trg;
   int trgpt;
@@ -117,7 +113,7 @@ public:
   TH2D *h2pteta_all;
   TH2D *h2pteta_sel;
   TH1D *hpt13;
-  TH1D* vpt[ny];
+  TH1D *vpt[ny];
 
   // (Optional) composition plots
   TProfile2D *p2pt, *p2rho, *p2chf, *p2nef, *p2nhf, *p2cef, *p2muf;
@@ -125,8 +121,7 @@ public:
 };
 
 class dijetHistos {
-public:
-
+ public:
   // Basic information about the trigger
   string trg;
   int trgpt;
@@ -136,21 +131,21 @@ public:
   TH2D *h2pteta_adall, *h2pteta_adsel;
   TH2D *h2pteta_tcall, *h2pteta_tcsel;
   TH2D *h2pteta_pfall, *h2pteta_pfsel;
-  TProfile2D *p2resab, *p2resad, *p2restc, *p2respf; // JEC L2L3Res for undoing
-  TProfile2D *p2m0, *p2m0x, *p2m2, *p2m2x; // JER MPFX, DBX methods
-  TProfile2D *p2m0ab, *p2m2ab, *p2mnab, *p2muab; // pT,avp (bisector)
-  TProfile2D *p2m0ad, *p2m2ad, *p2mnad, *p2muad; // pT,ave (dijet axis)
-  TProfile2D *p2m0tc, *p2m2tc, *p2mntc, *p2mutc; // pT,tag (central)
-  TProfile2D *p2m0pf, *p2m2pf, *p2mnpf, *p2mupf; // pt,probe (forward)
+  TProfile2D *p2resab, *p2resad, *p2restc, *p2respf;  // JEC L2L3Res for undoing
+  TProfile2D *p2m0, *p2m0x, *p2m2, *p2m2x;            // JER MPFX, DBX methods
+  TProfile2D *p2m0ab, *p2m2ab, *p2mnab, *p2muab;      // pT,avp (bisector)
+  TProfile2D *p2m0ad, *p2m2ad, *p2mnad, *p2muad;      // pT,ave (dijet axis)
+  TProfile2D *p2m0tc, *p2m2tc, *p2mntc, *p2mutc;      // pT,tag (central)
+  TProfile2D *p2m0pf, *p2m2pf, *p2mnpf, *p2mupf;      // pt,probe (forward)
 
   // (Optional) composition plots
-  TProfile2D *p2pt, *p2rho, *p2chf, *p2nef, *p2nhf, *p2cef, *p2muf; // probe,avp
-  TProfile *ppt13, *prho13, *pchf13, *pnef13, *pnhf13, *pcef13, *pmuf13; // tag
+  TProfile2D *p2pt, *p2rho, *p2chf, *p2nef, *p2nhf, *p2cef,
+      *p2muf;  // probe,avp
+  TProfile *ppt13, *prho13, *pchf13, *pnef13, *pnhf13, *pcef13, *pmuf13;  // tag
 };
 
 class dijetHistos2 {
-public:
-
+ public:
   // Basic information about the trigger
   string trg;
   int trgpt;
@@ -163,16 +158,16 @@ public:
   // Extra for FSR studies
   TProfile2D *p2mnu, *p2mnx, *p2mux, *p2mnux;
   TH2D *h2ptetatc, *h2ptetapf;
-  TProfile2D *p2restc, *p2m0tc, *p2m2tc, *p2mntc, *p2mutc; // pT,tag (central)
-  TProfile2D *p2respf, *p2m0pf, *p2m2pf, *p2mnpf, *p2mupf; // pT,probe (forward)
+  TProfile2D *p2restc, *p2m0tc, *p2m2tc, *p2mntc, *p2mutc;  // pT,tag (central)
+  TProfile2D *p2respf, *p2m0pf, *p2m2pf, *p2mnpf,
+      *p2mupf;  // pT,probe (forward)
 
   // Smearing controls
   TProfile2D *p2jsf, *p2jsftc, *p2jsfpf;
 };
 
 class multijetHistos {
-public:
-
+ public:
   // Basic information about the trigger
   string trg;
   int trgpt;
@@ -183,38 +178,38 @@ public:
   TH1D *hpta_all, *hptm_all, *hptl_all, *hptr_all;
   TH1D *hpta_sel, *hptm_sel, *hptl_sel, *hptr_sel;
   TProfile *presa, *presm, *presl, *presr;
-  TProfile *pm0a, *pm2a, *pmna, *pmua; // *pmoa; // pT,avp3
-  TProfile *pm0m, *pm2m, *pmnm, *pmum; // *pmom; // pT,ave
-  TProfile *pm0l, *pm2l, *pmnl, *pmul; //*pmol; // pT,tag
-  TProfile *pm0r, *pm2r, *pmnr, *pmur; // *pmor; // pT,probe
+  TProfile *pm0a, *pm2a, *pmna, *pmua;  // *pmoa; // pT,avp3
+  TProfile *pm0m, *pm2m, *pmnm, *pmum;  // *pmom; // pT,ave
+  TProfile *pm0l, *pm2l, *pmnl, *pmul;  //*pmol; // pT,tag
+  TProfile *pm0r, *pm2r, *pmnr, *pmur;  // *pmor; // pT,probe
 
   // (Optional) 2D recoils
   TH2D *h2recoila, *h2recoilm, *h2recoill, *h2recoilr;
 
   // (Optional) composition plots
-  TProfile *ppt13, *prho13, *pchf13, *pnef13, *pnhf13, *pcef13, *pmuf13; // lead pT,avp
-  TProfile *ppt25, *prho25, *pchf25, *pnef25, *pnhf25, *pcef25, *pmuf25; // recoil,pT,avp
-  
+  TProfile *ppt13, *prho13, *pchf13, *pnef13, *pnhf13, *pcef13,
+      *pmuf13;  // lead pT,avp
+  TProfile *ppt25, *prho25, *pchf25, *pnef25, *pnhf25, *pcef25,
+      *pmuf25;  // recoil,pT,avp
+
   // (Optional) Controls
   TH2D *h2m0a;
   TH2D *h2m2a;
   TH1D *hcosdphi;
 };
 
+// HELPER FUNCTIONS
 
-//HELPER FUNCTIONS
-
-// Helper function to retrieve FactorizedJetCorrector 
-FactorizedJetCorrector *getFJC(string l1="", string l2="", string res="",string path="") {
-  if (l1!="" && !(TString(l1.c_str()).Contains("_AK")))
-    l1 += "_AK4PFPuppi";
-  if (l2!="" && !(TString(l2.c_str()).Contains("_AK")))
-    l2 += "_AK4PFPuppi";
-  if (res!="" && !(TString(res.c_str()).Contains("_AK")))
+// Helper function to retrieve FactorizedJetCorrector
+FactorizedJetCorrector *getFJC(string l1 = "", string l2 = "", string res = "",
+                               string path = "") {
+  if (l1 != "" && !(TString(l1.c_str()).Contains("_AK"))) l1 += "_AK4PFPuppi";
+  if (l2 != "" && !(TString(l2.c_str()).Contains("_AK"))) l2 += "_AK4PFPuppi";
+  if (res != "" && !(TString(res.c_str()).Contains("_AK")))
     res += "_AK4PFPuppi";
 
   // Set default path
-  if (path=="") path = "CondFormats/JetMETObjects/data";
+  if (path == "") path = "CondFormats/JetMETObjects/data";
   const char *cd = path.c_str();
   const char *cl1 = l1.c_str();
   const char *cl2 = l2.c_str();
@@ -222,37 +217,37 @@ FactorizedJetCorrector *getFJC(string l1="", string l2="", string res="",string 
   string s("");
 
   vector<JetCorrectorParameters> v;
-  if (l1!=""){
-    s = Form("%s/%s.txt",cd,cl1);
+  if (l1 != "") {
+    s = Form("%s/%s.txt", cd, cl1);
     cout << s << endl << flush;
     JetCorrectorParameters *pl1 = new JetCorrectorParameters(s);
     v.push_back(*pl1);
   }
-  if (l2!="") {
-    s = Form("%s/%s.txt",cd,cl2);
+  if (l2 != "") {
+    s = Form("%s/%s.txt", cd, cl2);
     cout << s << endl << flush;
     JetCorrectorParameters *pl2 = new JetCorrectorParameters(s);
     v.push_back(*pl2);
   }
-  if (res!="") {
-    s = Form("%s/%s.txt",cd,cres);
+  if (res != "") {
+    s = Form("%s/%s.txt", cd, cres);
     cout << s << endl << flush;
     JetCorrectorParameters *pres = new JetCorrectorParameters(s);
     v.push_back(*pres);
   }
   FactorizedJetCorrector *jec = new FactorizedJetCorrector(v);
   return jec;
-} // getFJC
+}  // getFJC
 
-
-//helper function to setup trigger vector
-// @param void
-// @return vtrg vector of triggers
-vector<string> DijetHistosFill::initvtrg(){
+// helper function to setup trigger vector
+//  @param void
+//  @return vtrg vector of triggers
+vector<string> DijetHistosFill::initvtrg() {
   vector<string> vtrg;
 
   if (isZB)
-    vtrg.push_back("HLT_ZeroBias");  // biased for JetHT, but keep as placeholder
+    vtrg.push_back(
+        "HLT_ZeroBias");  // biased for JetHT, but keep as placeholder
 
   vtrg.push_back("HLT_PFJet40");
   vtrg.push_back("HLT_PFJet60");
@@ -322,15 +317,14 @@ void DijetHistosFill::setBranchStatus(vector<string> b) {
   }
 }
 
-
-//helper function to set all status of branches
-// @param vtrg vector of triggers
-// @param ntrg number of triggers
-// @param doTriggerMatch bool to do trigger matching
-// @return void
+// helper function to set all status of branches
+//  @param vtrg vector of triggers
+//  @param ntrg number of triggers
+//  @param doTriggerMatch bool to do trigger matching
+//  @return void
 void DijetHistosFill::initBranchstatus(vector<string> vtrg, int ntrg,
-                                       bool doTriggerMatch ) {
-  fChain->SetBranchStatus("*",1);
+                                       bool doTriggerMatch) {
+  fChain->SetBranchStatus("*", 1);
 
   // Set status of branches to be read
   cout << "Setting branch status for "
@@ -344,19 +338,18 @@ void DijetHistosFill::initBranchstatus(vector<string> vtrg, int ntrg,
     setBranchStatus(
         vector<string>({"genWeight", "Generator_binvar", "Pileup_pthatmax"}));
 
-    if (smearJets || doMCtruth){
+    if (smearJets || doMCtruth) {
       cout << "Adding branches for GenJets (" << (smearJets ? " smearJets" : "")
            << (doMCtruth ? " doMCtruth" : "") << ")" << endl;
       setBranchStatus(
           vector<string>({"Jet_genJetIdx", "nGenJet", "GenJet_pt", "GenJet_eta",
                           "GenJet_phi", "GenJet_mass"}));
 
-      if (doMCtruth){
-        setBranchStatus(vector<string>(
-          {"GenVtx_z","PV_z"}));
+      if (doMCtruth) {
+        setBranchStatus(vector<string>({"GenVtx_z", "PV_z"}));
       }
       _seed = 4;
-     _mersennetwister = std::mt19937(_seed);
+      _mersennetwister = std::mt19937(_seed);
     }
   }
 
@@ -364,47 +357,45 @@ void DijetHistosFill::initBranchstatus(vector<string> vtrg, int ntrg,
     setBranchStatus(vector<string>({"LHE_HT"}));
   }
 
-  if(isRun2) {
+  if (isRun2) {
     setBranchStatus(vector<string>(
         {"fixedGridRhoFastjetAll", "Jet_area", "ChsMET_pt", "ChsMET_phi"}));
-  }
-  else {
+  } else {
     setBranchStatus(vector<string>({"PuppiMET_pt", "PuppiMET_phi"}));
   }
 
-  if(doPFComposition){
+  if (doPFComposition) {
     setBranchStatus(vector<string>(
         {"Jet_chHEF", "Jet_neHEF", "Jet_neEmEF", "Jet_chEmEF", "Jet_muEF",
          /*"Jet_hfEmEF","Jet_hfHEF" */}));
   }
 
-  if(doTriggerMatch)
-  {
+  if (doTriggerMatch) {
     // https://github.com/cms-sw/cmssw/blob/CMSSW_12_4_8/PhysicsTools/NanoAOD/python/triggerObjects_cff.py#L136-L180
     setBranchStatus(vector<string>({"nTrigObjJMEAK4", "TrigObjJMEAK4_pt",
                                     "TrigObjJMEAK4_eta", "TrigObjJMEAK4_phi"}));
   }
 
   for (int i = 0; i != ntrg; ++i) {
-    if (vtrg[i] != "HLT_MC")
-      fChain->SetBranchStatus(vtrg[i].c_str(), 1);
+    if (vtrg[i] != "HLT_MC") fChain->SetBranchStatus(vtrg[i].c_str(), 1);
     if (mtrg[vtrg[i]] == 0) {
       cout << "Missing branch info for " << vtrg[i] << endl << flush;
     }
     assert(mtrg[vtrg[i]] != 0);
   }
 
-  setBranchStatus(
-      vector<string>({"run", "luminosityBlock", "event", "nJet", "Jet_pt",
-                      "Jet_eta", "Jet_phi", "Jet_mass", "Jet_jetId",
-                      "Jet_rawFactor", "Flag_METFilters" ,/*Rho_fixedGridRhoAll*/}));
+  setBranchStatus(vector<string>(
+      {"run", "luminosityBlock", "event", "nJet", "Jet_pt", "Jet_eta",
+       "Jet_phi", "Jet_mass", "Jet_jetId", "Jet_rawFactor", "Flag_METFilters",
+       /*Rho_fixedGridRhoAll*/}));
 }
 
-//helper functoin to setup mt (map from triggers to their respective pt/ eta regions)
-// @param fwdeta forward eta
-// @param fwdeta0 forward eta 0
-// @return void
-void DijetHistosFill::initmt(double fwdeta, double fwdeta0){
+// helper functoin to setup mt (map from triggers to their respective pt/ eta
+// regions)
+//  @param fwdeta forward eta
+//  @param fwdeta0 forward eta 0
+//  @return void
+void DijetHistosFill::initmt(double fwdeta, double fwdeta0) {
   mt["HLT_MC"] = range{15, 3000, 0, 5.2};
   mt["HLT_ZeroBias"] = range{15, 3000, 0, 5.2};
 
@@ -457,9 +448,9 @@ void DijetHistosFill::initmt(double fwdeta, double fwdeta0){
 // @param jerpath path to jer
 // @param jerpathsf path to jersf
 // @return void
-void DijetHistosFill::initjec(FactorizedJetCorrector  * &jec,
-                              FactorizedJetCorrector * &jecl1rc,
-                              FactorizedJetCorrector * &jersfvspt,
+void DijetHistosFill::initjec(FactorizedJetCorrector *&jec,
+                              FactorizedJetCorrector *&jecl1rc,
+                              FactorizedJetCorrector *&jersfvspt,
                               string &jerpath, string &jerpathsf) {
   // jec = getFJC("","Winter22Run3_V1_MC_L2Relative","","");
   if (isRun2 == 0) {
@@ -611,2048 +602,2196 @@ void DijetHistosFill::initjec(FactorizedJetCorrector  * &jec,
 // @param jer: jet resolution object
 // @param jersf: jet resolution scale factor object
 // @return void
-void DijetHistosFill::initjer(JME::JetResolution * &jer,
-                              JME::JetResolutionScaleFactor * &jersf, 
-                              FactorizedJetCorrector *jersfvspt, string jerpath, string jerpathsf){
-   if (isMC && smearJets) {
-     cout << jerpath << endl << flush;
-     if (!useJERSFvsPt) cout << jerpathsf << endl << flush;
-     if (jerpath=="" || (jerpathsf=="" && !useJERSFvsPt))
-       cout << "Missing JER file paths for " << dataset << endl << flush;
-     assert(jerpath!="");
-     assert(jerpathsf!="" || useJERSFvsPt);
-     assert(jersfvspt || !useJERSFvsPt);
-     jer = new JME::JetResolution(jerpath.c_str());
-     if (!useJERSFvsPt)
-       jersf = new JME::JetResolutionScaleFactor(jerpathsf.c_str());
-     if (!jer || (!jersf && !useJERSFvsPt) || (!jersfvspt && useJERSFvsPt))
-       cout << "Missing JER files for " << dataset << endl << flush;
-   }
+void DijetHistosFill::initjer(JME::JetResolution *&jer,
+                              JME::JetResolutionScaleFactor *&jersf,
+                              FactorizedJetCorrector *jersfvspt, string jerpath,
+                              string jerpathsf) {
+  if (isMC && smearJets) {
+    cout << jerpath << endl << flush;
+    if (!useJERSFvsPt) cout << jerpathsf << endl << flush;
+    if (jerpath == "" || (jerpathsf == "" && !useJERSFvsPt))
+      cout << "Missing JER file paths for " << dataset << endl << flush;
+    assert(jerpath != "");
+    assert(jerpathsf != "" || useJERSFvsPt);
+    assert(jersfvspt || !useJERSFvsPt);
+    jer = new JME::JetResolution(jerpath.c_str());
+    if (!useJERSFvsPt)
+      jersf = new JME::JetResolutionScaleFactor(jerpathsf.c_str());
+    if (!jer || (!jersf && !useJERSFvsPt) || (!jersfvspt && useJERSFvsPt))
+      cout << "Missing JER files for " << dataset << endl << flush;
+  }
 }
 
-// helper function to setup 
+// helper function to setup
 
 // Main event loop function
 //  @param void
 //  @return void
 void DijetHistosFill::Loop() {
   // $ what here can go?
-//   In a ROOT session, you can do:
-//      root> .L DijetHistosFill.C
-//      root> DijetHistosFill t
-//      root> t.GetEntry(12); // Fill t data members with entry number 12
-//      root> t.Show();       // Show values of entry 12
-//      root> t.Show(16);     // Read and show values of entry 16
-//      root> t.Loop();       // Loop on all entries
-//
+  //   In a ROOT session, you can do:
+  //      root> .L DijetHistosFill.C
+  //      root> DijetHistosFill t
+  //      root> t.GetEntry(12); // Fill t data members with entry number 12
+  //      root> t.Show();       // Show values of entry 12
+  //      root> t.Show(16);     // Read and show values of entry 16
+  //      root> t.Loop();       // Loop on all entries
+  //
 
-//     This is the loop skeleton where:
-//    jentry is the global entry number in the chain
-//    ientry is the entry number in the current Tree
-//  Note that the argument to GetEntry must be:
-//    jentry for TChain::GetEntry
-//    ientry for TTree::GetEntry and TBranch::GetEntry
-//
-//       To read only selected branches, Insert statements like:
-// METHOD1:
-//    fChain->SetBranchStatus("*",0);  // disable all branches
-//    fChain->SetBranchStatus("branchname",1);  // activate branchname
-// METHOD2: replace line
-//    fChain->GetEntry(jentry);       //read all branches
-//by  b_branchname->GetEntry(ientry); //read only this branch
-   if (fChain == 0) return;
+  //     This is the loop skeleton where:
+  //    jentry is the global entry number in the chain
+  //    ientry is the entry number in the current Tree
+  //  Note that the argument to GetEntry must be:
+  //    jentry for TChain::GetEntry
+  //    ientry for TTree::GetEntry and TBranch::GetEntry
+  //
+  //       To read only selected branches, Insert statements like:
+  // METHOD1:
+  //    fChain->SetBranchStatus("*",0);  // disable all branches
+  //    fChain->SetBranchStatus("branchname",1);  // activate branchname
+  // METHOD2: replace line
+  //    fChain->GetEntry(jentry);       //read all branches
+  // by  b_branchname->GetEntry(ientry); //read only this branch
+  if (fChain == 0) return;
 
-   //Start timer for full job
-   TStopwatch fulltime, laptime;
-   fulltime.Start();
-   TDatime bgn;
-   int nlap(0);
-   
-   // Initialize list of triggers 
-   vector<string> vtrg  =  initvtrg();
-   int ntrg = vtrg.size(); // number of triggers
-  
-   double Jet_l1rcFactor[nJetMax]; // For L1L2L3-RC type-I MET
-   bool doTriggerMatch = false;
-   nTrigObjJMEAK4 = 0;  // turn off
+  // Start timer for full job
+  TStopwatch fulltime, laptime;
+  fulltime.Start();
+  TDatime bgn;
+  int nlap(0);
 
-  // Initialize Branches of fChain 
-   initBranchstatus(vtrg, ntrg, doTriggerMatch);
+  // Initialize list of triggers
+  vector<string> vtrg = initvtrg();
+  int ntrg = vtrg.size();  // number of triggers
 
-   double fwdeta = 3.139;   // was 2.853. 80% (100%) on negative (positive) side
-   double fwdeta0 = 2.964;  // 2.853; // 40 and 260 up
-   initmt(fwdeta, fwdeta0);
-    
+  double Jet_l1rcFactor[nJetMax];  // For L1L2L3-RC type-I MET
+  bool doTriggerMatch = false;
+  nTrigObjJMEAK4 = 0;  // turn off
+
+  // Initialize Branches of fChain
+  initBranchstatus(vtrg, ntrg, doTriggerMatch);
+
+  // Initialize ranges for eta and phi
+  double fwdeta = 3.139;   // was 2.853. 80% (100%) on negative (positive) side
+  double fwdeta0 = 2.964;  // 2.853; // 40 and 260 up
+  initmt(fwdeta, fwdeta0);
+
   // Initialize JEC corrector
-   if (debug) cout << "Setting up JEC corrector" << endl << flush;
-   FactorizedJetCorrector *jec(0), *jecl1rc(0), *jersfvspt(0);
-   string jerpath(""), jerpathsf("");
-   initjec(jec, jecl1rc, jersfvspt, jerpath, jerpathsf);
-   
+  if (debug) cout << "Setting up JEC corrector" << endl << flush;
+  FactorizedJetCorrector *jec(0), *jecl1rc(0), *jersfvspt(0);
+  string jerpath(""), jerpathsf("");
+  initjec(jec, jecl1rc, jersfvspt, jerpath, jerpathsf);
+
   // Initialize JER smearing
-   if (debug) cout << "Setting up JER smearing" << endl << flush;
-   JME::JetResolution *jer(0);
-   JME::JetResolutionScaleFactor *jersf(0);
-   initjer(jer, jersf,jersfvspt, jerpath, jerpathsf);
+  if (debug) cout << "Setting up JER smearing" << endl << flush;
+  JME::JetResolution *jer(0);
+  JME::JetResolutionScaleFactor *jersf(0);
+  initjer(jer, jersf, jersfvspt, jerpath, jerpathsf);
 
   // Initialize Vectors for computations
-   TLorentzVector p4rawmet, p4t1met, p4mht, p4l1rc, p4dj;
-   //TLorentzVector p4, p4s, p4mht, p4mht2, p4mhtc, p4mhtc3, p4t, p4p;
-   TLorentzVector p4, /*p4raw,*/ p4g, p4s, p4t, p4p;
-   TLorentzVector p4lead, p4recoil;//, p4other;
-   TLorentzVector p4leadRES, p4recoilRES;
-   TLorentzVector p4b3, p4b3r, p4b3l, p4m;
-   TLorentzVector p4b, p4bt, p4bp, p4bx, p4d, p4dx;
-   TLorentzVector p4c, p4cx, p4f, p4fx, p4l, p4r;
-   TLorentzVector p4m0, p4m2, p4mn, p4mu;//, p4mo;
-   TLorentzVector p4m3, p4mn3, p4mu3;
-   TLorentzVector p4corrjets, p4rcjets, p4rawjets;
+  //$ what do the variables each stand for
+  TLorentzVector p4rawmet, p4t1met, p4mht, p4l1rc, p4dj;
+  // TLorentzVector p4, p4s, p4mht, p4mht2, p4mhtc, p4mhtc3, p4t, p4p;
+  TLorentzVector p4, /*p4raw,*/ p4g, p4s, p4t, p4p;
+  TLorentzVector p4lead, p4recoil;  //, p4other;
+  TLorentzVector p4leadRES, p4recoilRES;
+  TLorentzVector p4b3, p4b3r, p4b3l, p4m;
+  TLorentzVector p4b, p4bt, p4bp, p4bx, p4d, p4dx;
+  TLorentzVector p4c, p4cx, p4f, p4fx, p4l, p4r;
+  TLorentzVector p4m0, p4m2, p4mn, p4mu;  //, p4mo;
+  TLorentzVector p4m3, p4mn3, p4mu3;
+  TLorentzVector p4corrjets, p4rcjets, p4rawjets;
 
-   // initialize output file
-   TFile *fout = new TFile(Form("rootfiles/jmenano_%s_out_%s_%s.root",
-				isMC ? "mc" : "data",
-				dataset.c_str(), version.c_str()),
-			   "RECREATE");
-   
-   // Monitor trigger rates
-   TH1D *htrg = new TH1D("htrg","Triggers;Trigger;N_{events}",
-			 vtrg.size(),0,vtrg.size());
-   for (int i = 1; i != htrg->GetNbinsX()+1; ++i) {
-     htrg->GetXaxis()->SetBinLabel(i,vtrg[i-1].c_str());
-   }
+  // initialize output file
+  TFile *fout =
+      new TFile(Form("rootfiles/jmenano_%s_out_%s_%s.root",
+                     isMC ? "mc" : "data", dataset.c_str(), version.c_str()),
+                "RECREATE");
 
-   if (debug) cout << "Setting up histograms" << endl << flush;   
+  // Monitor trigger rates
+  TH1D *htrg = new TH1D("htrg", "Triggers;Trigger;N_{events}", vtrg.size(), 0,
+                        vtrg.size());
+  for (int i = 1; i != htrg->GetNbinsX() + 1; ++i) {
+    htrg->GetXaxis()->SetBinLabel(i, vtrg[i - 1].c_str());
+  }
 
-   // Setup HT bin weighting and monitoring
-   TH1D *hxsec(0), *hnevt(0), *hLHE_HT(0), *hHT(0);
-   double vht[] = {0, 25, 50, 100, 200, 300, 500, 700, 1000, 1500, 2000, 6500};
-   const int nht = sizeof(vht)/sizeof(vht[0])-1;
-   int nMG(0);
-   if (isMG) {
-     
-     hxsec = new TH1D("hxsec",";H_{T} (GeV);pb",nht,vht);
-     hnevt = new TH1D("hnevt",";H_{T} (GeV);N_{evt}",nht,vht);
-     hLHE_HT = new TH1D("hLHE_HT",";H_{T} (GeV);N_{evt} (unweighted)",nht,vht);
-     hHT = new TH1D("hHT",";H_{T} (GeV);N_{evt} (weighted)",2485,15,2500);
+  if (debug) cout << "Setting up histograms" << endl << flush;
 
-     // Reference number of events, retrieved manuallay with
-     // TChain c("Events"); c.AddFile("<path to files>/*.root"); c.GetEntries();
-     // Also re-calculated this code before event loop when needed
-     int vnevt[nht] = {0, 0, 11197186, 23002929, 17512439, 16405924, 14359110,
-		       13473185, 4365993, 2944561, 1836165};
-     for (int i = 0; i != nht; ++i) {
-       hnevt->SetBinContent(i+1, vnevt[i]);
-       nMG += vnevt[i];
-     }
-     cout << "Loaded Hefaistos MadGraph event numbers ("
-	  << nMG << ")" << endl << flush;
-     
-     // xsec from jetphys/settings.h_template
-     double vxsec[nht] = {0, 0, 246300000.*23700000./28060000., 23700000,
-			  1547000, 322600, 29980, 6334, 1088, 99.11, 20.23};
-     for (int i = 0; i != nht; ++i) {
-       hxsec->SetBinContent(i+1, vxsec[i]);
-     }
-   } // isMG
+  // Setup HT bin weighting and monitoring
+  TH1D *hxsec(0), *hnevt(0), *hLHE_HT(0), *hHT(0);
+  double vht[] = {0, 25, 50, 100, 200, 300, 500, 700, 1000, 1500, 2000, 6500};
+  const int nht = sizeof(vht) / sizeof(vht[0]) - 1;
+  int nMG(0);
+  if (isMG) {
+    hxsec = new TH1D("hxsec", ";H_{T} (GeV);pb", nht, vht);
+    hnevt = new TH1D("hnevt", ";H_{T} (GeV);N_{evt}", nht, vht);
+    hLHE_HT =
+        new TH1D("hLHE_HT", ";H_{T} (GeV);N_{evt} (unweighted)", nht, vht);
+    hHT = new TH1D("hHT", ";H_{T} (GeV);N_{evt} (weighted)", 2485, 15, 2500);
 
-   // Inclusive jets pT binning
-   double vpti[] = 
-     {1, 5, 6, 8, 10, 12, 15, 18, 21, 24, 28, 32, 37, 43, 49, 56, 64, 74, 84,
-      97, 114, 133, 153, 174, 196, 220, 245, 272, 300, 330, 362, 395, 430, 468,
-      507, 548, 592, 638, 686, 737, 790, 846, 905, 967, 1032, 1101, 1172, 1248,
-      1327, 1410, 1497, 1588, 1684, 1784, 1890, 2000, 2116, 2238, 2366, 2500,
-      2640, 2787, 2941, 3103, 3273, 3450, 3637, 3832, 4037, 4252, 4477, 4713,
-      4961, 5220, 5492, 5777, 6076, 6389, 6717, 7000};
-   double npti = sizeof(vpti)/sizeof(vpti[0])-1;
-   // L2Res pT binning (central+forward hybrid)
-   double vptd[] = 
-     //{59.,85.,104.,170.,236., 302., 370., 460., 575.}; // central
-     //{86., 110., 132., 204., 279., 373.} // forward
-     {15, 21, 28, 37, 49,
-      59, 86, 110, 132, 170, 204, 236, 279, 302, 373, 460, 575,
-      638, 737, 846, 967, 1101, 1248,
-      1410, 1588, 1784, 2000, 2238, 2500, 2787, 3103};
-   double nptd = sizeof(vptd)/sizeof(vptd[0])-1;
-   // L3Res (gamma+jet) pT binning adapted and extended
-   const double vpt[] = {15, 20, 25, 30, 35,
-			 40, 50, 60, 70, 85, 100, 125, 155, 180, 210, 250, 300,
-			 350, 400, 500, 600, 800, 1000, 1200, 1500,
-			 1800, 2100, 2400, 2700, 3000};
-   const int npt = sizeof(vpt)/sizeof(vpt[0])-1;
+    // Reference number of events, retrieved manuallay with
+    // TChain c("Events"); c.AddFile("<path to files>/*.root"); c.GetEntries();
+    // Also re-calculated this code before event loop when needed
+    int vnevt[nht] = {0,        0,        11197186, 23002929,
+                      17512439, 16405924, 14359110, 13473185,
+                      4365993,  2944561,  1836165};
+    for (int i = 0; i != nht; ++i) {
+      hnevt->SetBinContent(i + 1, vnevt[i]);
+      nMG += vnevt[i];
+    }
+    cout << "Loaded Hefaistos MadGraph event numbers (" << nMG << ")" << endl
+         << flush;
 
-   // Regular L2Relative eta binning
-   double vx[] =
-     {-5.191,
-      -4.889, -4.716, -4.538, -4.363, -4.191, -4.013, -3.839, -3.664, -3.489,
-      -3.314, -3.139, -2.964, -2.853, -2.65, -2.5, -2.322, -2.172, -2.043,
-      -1.93, -1.83, -1.74, -1.653, -1.566, -1.479, -1.392, -1.305, -1.218,
-      -1.131, -1.044, -0.957, -0.879, -0.783, -0.696, -0.609, -0.522, -0.435, 
-      -0.348, -0.261, -0.174, -0.087, 0, 0.087, 0.174, 0.261, 0.348, 0.435,
-      0.522, 0.609, 0.696, 0.783, 0.879, 0.957, 1.044, 1.131, 1.218, 1.305,
-      1.392, 1.479, 1.566, 1.653, 1.74, 1.83, 1.93, 2.043, 2.172, 2.322, 2.5,
-      2.65, 2.853, 2.964, 3.139, 3.314, 3.489, 3.664, 3.839, 4.013, 4.191,
-      4.363, 4.538, 4.716, 4.889, 5.191};
-   const int nx = sizeof(vx)/sizeof(vx[0])-1;
-   // Current L2Res |eta| binning from Jindrich
-   // https://indico.cern.ch/event/1263476/contributions/5311425/attachments/2612023/4513129/L2Res+HDM-March15.pdf
-   double vxd[] =
-     {0, 0.261, 0.522, 0.783, 1.044, 1.305, 1.479, 1.653, 1.93, 2.172, 2.322, 2.5, 2.65, 2.853, 2.964, 3.139, 3.489, 3.839, 5.191};
-   const int nxd = sizeof(vxd)/sizeof(vxd[0])-1;
+    // xsec from jetphys/settings.h_template
+    double vxsec[nht] = {0,        0,       246300000. * 23700000. / 28060000.,
+                         23700000, 1547000, 322600,
+                         29980,    6334,    1088,
+                         99.11,    20.23};
+    for (int i = 0; i != nht; ++i) {
+      hxsec->SetBinContent(i + 1, vxsec[i]);
+    }
+  }  // isMG
 
-   const int ny = 800;
-   double vy[ny+1];
-   for (int i = 0; i != ny+1; ++i) vy[i] = -3. + (+5.+3.)/ny*i;
-   const int nz = 400;
-   double vz[nz+1];
-   for (int i = 0; i != nz+1; ++i) vz[i] = -1. + (+3.+1.)/nz*i;
-   
-   // Extras for JMENANO
-   TH2D *h2mhtvsmet = new TH2D("h2mhtvsmet","MHT vs MET;MET;MHT",
-			       500,0,500,500,0,500);
-   TH2D *h2dphi = new TH2D("h2dphi","#Delta#phi vs #eta;#eta;#Delta#phi",
-			   nx,vx,126,-TMath::TwoPi(),+TMath::TwoPi());
+  // Inclusive jets pT binning
+  double vpti[] = {1,    5,    6,    8,    10,   12,   15,   18,   21,   24,
+                   28,   32,   37,   43,   49,   56,   64,   74,   84,   97,
+                   114,  133,  153,  174,  196,  220,  245,  272,  300,  330,
+                   362,  395,  430,  468,  507,  548,  592,  638,  686,  737,
+                   790,  846,  905,  967,  1032, 1101, 1172, 1248, 1327, 1410,
+                   1497, 1588, 1684, 1784, 1890, 2000, 2116, 2238, 2366, 2500,
+                   2640, 2787, 2941, 3103, 3273, 3450, 3637, 3832, 4037, 4252,
+                   4477, 4713, 4961, 5220, 5492, 5777, 6076, 6389, 6717, 7000};
+  double npti = sizeof(vpti) / sizeof(vpti[0]) - 1;
+  // L2Res pT binning (central+forward hybrid)
+  double vptd[] =
+      //{59.,85.,104.,170.,236., 302., 370., 460., 575.}; // central
+      //{86., 110., 132., 204., 279., 373.} // forward
+      {15,   21,   28,   37,   49,   59,   86,   110,  132, 170, 204,
+       236,  279,  302,  373,  460,  575,  638,  737,  846, 967, 1101,
+       1248, 1410, 1588, 1784, 2000, 2238, 2500, 2787, 3103};
+  double nptd = sizeof(vptd) / sizeof(vptd[0]) - 1;
+  // L3Res (gamma+jet) pT binning adapted and extended
+  const double vpt[] = {15,   20,   25,   30,   35,   40,  50,   60,
+                        70,   85,   100,  125,  155,  180, 210,  250,
+                        300,  350,  400,  500,  600,  800, 1000, 1200,
+                        1500, 1800, 2100, 2400, 2700, 3000};
+  const int npt = sizeof(vpt) / sizeof(vpt[0]) - 1;
 
-   // $ What here can go?
-   // L2Res profiles for HDM method
-   // coding: m0=MPF, m2=DB, mn=n-jet, mu=uncl. (observable)
-   //         a=PtAve, t=PtTag, p=PtProbe (binning)
-   //         b=bisector, c=central(tag), f=forward(probe) (projection axis)
-   fout->mkdir("Refs");
-   fout->cd("Refs");
-   TH1D *hnjet = new TH1D("hnjet","hnjet",500,0,500);
+  // Regular L2Relative eta binning
+  double vx[] = {-5.191, -4.889, -4.716, -4.538, -4.363, -4.191, -4.013, -3.839,
+                 -3.664, -3.489, -3.314, -3.139, -2.964, -2.853, -2.65,  -2.5,
+                 -2.322, -2.172, -2.043, -1.93,  -1.83,  -1.74,  -1.653, -1.566,
+                 -1.479, -1.392, -1.305, -1.218, -1.131, -1.044, -0.957, -0.879,
+                 -0.783, -0.696, -0.609, -0.522, -0.435, -0.348, -0.261, -0.174,
+                 -0.087, 0,      0.087,  0.174,  0.261,  0.348,  0.435,  0.522,
+                 0.609,  0.696,  0.783,  0.879,  0.957,  1.044,  1.131,  1.218,
+                 1.305,  1.392,  1.479,  1.566,  1.653,  1.74,   1.83,   1.93,
+                 2.043,  2.172,  2.322,  2.5,    2.65,   2.853,  2.964,  3.139,
+                 3.314,  3.489,  3.664,  3.839,  4.013,  4.191,  4.363,  4.538,
+                 4.716,  4.889,  5.191};
+  const int nx = sizeof(vx) / sizeof(vx[0]) - 1;
+  // Current L2Res |eta| binning from Jindrich
+  // https://indico.cern.ch/event/1263476/contributions/5311425/attachments/2612023/4513129/L2Res+HDM-March15.pdf
+  double vxd[] = {0,     0.261, 0.522, 0.783, 1.044, 1.305, 1.479,
+                  1.653, 1.93,  2.172, 2.322, 2.5,   2.65,  2.853,
+                  2.964, 3.139, 3.489, 3.839, 5.191};
+  const int nxd = sizeof(vxd) / sizeof(vxd[0]) - 1;
 
-    // $ What here can go?
-   /*
-   // PF composition plots
-   // Copy L2Res histograms for multiple pT bins
-   const double vpt[] = {15, 20, 25, 30, 35,
-			 40, 50, 60, 70, 85, 100, 125, 155, 180, 210, 250, 300,
-			 350, 400, 500, 600, 800, 1000, 1200, 1500,
-			 1800, 2100, 2400, 2700, 3000};
-   const int npt = sizeof(vpt)/sizeof(vpt[0])-1;
+  const int ny = 800;
+  double vy[ny + 1];
+  for (int i = 0; i != ny + 1; ++i) vy[i] = -3. + (+5. + 3.) / ny * i;
+  const int nz = 400;
+  double vz[nz + 1];
+  for (int i = 0; i != nz + 1; ++i) vz[i] = -1. + (+3. + 1.) / nz * i;
 
-   TH1D *hptbins = new TH1D("hptbins",";p_{T} (GeV);N_{events}",npt,vpt);
+  // Extras for JMENANO
+  TH2D *h2mhtvsmet =
+      new TH2D("h2mhtvsmet", "MHT vs MET;MET;MHT", 500, 0, 500, 500, 0, 500);
+  TH2D *h2dphi = new TH2D("h2dphi", "#Delta#phi vs #eta;#eta;#Delta#phi", nx,
+                          vx, 126, -TMath::TwoPi(), +TMath::TwoPi());
 
-   TProfile *pjes = new TProfile("pjes","JES",nx,vx);
-   TProfile *pres = new TProfile("pres","RES",nx,vx);
-   TProfile *pdjes = new TProfile("pdjes","#DELTAJES",nx,vx);
-   TProfile *pjes13 = new TProfile("pjes13","JES",npt,vpt);
-   TProfile *pres13 = new TProfile("pres13","RES",npt,vpt);
-   TProfile *pdjes13 = new TProfile("pdjes13","#DELTAJES",npt,vpt);
+  // $ What here can go?
+  // L2Res profiles for HDM method
+  // coding: m0=MPF, m2=DB, mn=n-jet, mu=uncl. (observable)
+  //         a=PtAve, t=PtTag, p=PtProbe (binning)
+  //         b=bisector, c=central(tag), f=forward(probe) (projection axis)
+  fout->mkdir("Refs");
+  fout->cd("Refs");
+  TH1D *hnjet = new TH1D("hnjet", "hnjet", 500, 0, 500);
 
-   TProfile *pchf = new TProfile("pchf","CHF",nx,vx);
-   TProfile *pnhf = new TProfile("pnhf","NHF",nx,vx);
-   TProfile *pnef = new TProfile("pnef","NEF",nx,vx);
-   TProfile *pcef = new TProfile("pcef","CEF",nx,vx);
-   TProfile *pmuf = new TProfile("pmuf","MUF",nx,vx);
-   TProfile *phef = new TProfile("phfhf","HEF",nx,vx);
-   TProfile *phhf = new TProfile("phfef","HHF",nx,vx);
+  // $ What here can go?
+  /*
+  // PF composition plots
+  // Copy L2Res histograms for multiple pT bins
+  const double vpt[] = {15, 20, 25, 30, 35,
+                        40, 50, 60, 70, 85, 100, 125, 155, 180, 210, 250, 300,
+                        350, 400, 500, 600, 800, 1000, 1200, 1500,
+                        1800, 2100, 2400, 2700, 3000};
+  const int npt = sizeof(vpt)/sizeof(vpt[0])-1;
 
-   TProfile *pchf13 = new TProfile("pchf13","CHF",npt,vpt);
-   TProfile *pnhf13 = new TProfile("pnhf13","NHF",npt,vpt);
-   TProfile *pnef13 = new TProfile("pnef13","NEF",npt,vpt);
-   TProfile *pcef13 = new TProfile("pcef13","CEF",npt,vpt);
-   TProfile *pmuf13 = new TProfile("pmuf13","MUF",npt,vpt);
-   
-   TH1D *hmjj2 = new TH1D("hmjj2","Dijet mass, 2-lead",1000,0,1000);
-   TH1D *hmjj213 = new TH1D("hmjj213","Dijet mass, |#DeltaEta|<1.3, 2-lead",
-   			    1000,0,1000);
-   */
-   fout->cd();
-   
-   if (debug) cout << "Load JSON (or not)" << endl << flush;
-   
-   bool doJSON = (true && !isMC);
-   if (doJSON) {
-     if (!LoadJSON()) {
-       cout << "Issues loading the JSON file; aborting..." << endl << flush;
-       exit(0);
-     }
-   }
-   int _nbadevts_json(0);
+  TH1D *hptbins = new TH1D("hptbins",";p_{T} (GeV);N_{events}",npt,vpt);
 
-   bool doTrigger = true;//(true && !isMC);
-   int _nbadevts_trg(0);
-   int _nbadevts_fwdtrg(0);
-   int _ngoodevts(0);
-   
-   // Listing of runs and LS
-   int nrun(0), nls(0), nevt(0);
-   map<int, map<int, int> > mrunls;
+  TProfile *pjes = new TProfile("pjes","JES",nx,vx);
+  TProfile *pres = new TProfile("pres","RES",nx,vx);
+  TProfile *pdjes = new TProfile("pdjes","#DELTAJES",nx,vx);
+  TProfile *pjes13 = new TProfile("pjes13","JES",npt,vpt);
+  TProfile *pres13 = new TProfile("pres13","RES",npt,vpt);
+  TProfile *pdjes13 = new TProfile("pdjes13","#DELTAJES",npt,vpt);
 
-   map<string, mctruthHistos*> mhmc;
-   map<string, jetvetoHistos*> mhjv;
-   map<string, incjetHistos*> mhij;
-   map<string, dijetHistos*> mhdj;
-   map<string, dijetHistos2*> mhdj2;
-   map<string, multijetHistos*> mhmj;
+  TProfile *pchf = new TProfile("pchf","CHF",nx,vx);
+  TProfile *pnhf = new TProfile("pnhf","NHF",nx,vx);
+  TProfile *pnef = new TProfile("pnef","NEF",nx,vx);
+  TProfile *pcef = new TProfile("pcef","CEF",nx,vx);
+  TProfile *pmuf = new TProfile("pmuf","MUF",nx,vx);
+  TProfile *phef = new TProfile("phfhf","HEF",nx,vx);
+  TProfile *phhf = new TProfile("phfef","HHF",nx,vx);
 
-    //for each trigger make a directory and cd into it
-   for (int itrg = 0; itrg != ntrg; ++itrg) {
-     
-     if (debug) cout << "Trigger " << vtrg[itrg] << endl << flush;
-     
-     fout->mkdir(vtrg[itrg].c_str());
-     fout->cd(vtrg[itrg].c_str());
-     TDirectory *dout = gDirectory;
-     
-     // Figure out trigger pT threshold from the name
-     int trgpt(-1), nfound(0);
-     if (nfound!=1) {
-       nfound = (vtrg[itrg]=="HLT_ZeroBias"||vtrg[itrg]=="HLT_MC" ? 1 : 0);
-       trgpt = 0;
-     }
-     if (nfound!=1)
-       nfound = sscanf(vtrg[itrg].c_str(),"HLT_PFJet%d",&trgpt);
-     if (nfound!=1)
-       nfound = sscanf(vtrg[itrg].c_str(),"HLT_PFJetFwd%d",&trgpt);
-     if (nfound!=1)
-       nfound = sscanf(vtrg[itrg].c_str(),"HLT_DiPFJetAve%d",&trgpt);
-     if (nfound!=1)
-       nfound = sscanf(vtrg[itrg].c_str(),"HLT_DiPFJetAve%d_HFJEC",&trgpt);
-     if (!(nfound==1 && trgpt!=-1)) {
-       cout << "trigger " << vtrg[itrg] << ": nfound="<<nfound
-	    << ", trgpt = " << trgpt << endl << flush;
-     }
-     assert(nfound==1);
-     assert(trgpt!=-1);
+  TProfile *pchf13 = new TProfile("pchf13","CHF",npt,vpt);
+  TProfile *pnhf13 = new TProfile("pnhf13","NHF",npt,vpt);
+  TProfile *pnef13 = new TProfile("pnef13","NEF",npt,vpt);
+  TProfile *pcef13 = new TProfile("pcef13","CEF",npt,vpt);
+  TProfile *pmuf13 = new TProfile("pmuf13","MUF",npt,vpt);
 
-     //triggers for Monte Carlo
-     if (isMC && doMCtruth && vtrg[itrg]=="HLT_MC") {
+  TH1D *hmjj2 = new TH1D("hmjj2","Dijet mass, 2-lead",1000,0,1000);
+  TH1D *hmjj213 = new TH1D("hmjj213","Dijet mass, |#DeltaEta|<1.3, 2-lead",
+                           1000,0,1000);
+  */
+  fout->cd();
 
-       if (debug) cout << "Setup MC truth" << endl << flush;
-       
-       dout->mkdir("MCtruth");
-       dout->cd("MCtruth");
-       
-       mctruthHistos *h = new mctruthHistos();
-       
-       string &t = vtrg[itrg];
-       mhmc[t] = h;
-       // $ What here can go?
-       //h->trg = t;
-       //h->trgpt = trgpt;
-       
-       //struct range &r  = mt[t];
-       //h->ptmin = r.ptmin;
-       //h->ptmax = r.ptmax;
-       //h->absetamin = r.absetamin;
-       //h->absetamax = r.absetamax;
+  if (debug) cout << "Load JSON (or not)" << endl << flush;
 
-       h->h2pteta = new TH2D("h2pteta",";|#eta_{jet}|;p_{T,gen} (GeV);"
-			     "N_{events}",nxd,vxd, nptd, vptd);
-       h->h2pteta_gen = new TH2D("h2pteta_gen",";|#eta_{gen}|;p_{T,gen} (GeV);"
-				 "N_{events}",nxd,vxd, nptd, vptd);
-       h->h2pteta_rec = new TH2D("h2pteta_rec",";|#eta_{jet}|;p_{T,jet} (GeV);"
-				 "N_{events}",nxd,vxd, nptd, vptd);
-       h->p2jes = new TProfile2D("p2jes",";|#eta_{jet}|;p_{T,gen} (GeV);"
-				 "JES(jet)",
-				 nxd,vxd, nptd, vptd);
-       h->p2jsf = new TProfile2D("p2jsf",";|#eta_{jet}|;p_{T,gen} (GeV);"
-				 "JERSF(jet)",
-				 nxd,vxd, nptd, vptd);
-       h->p2r = new TProfile2D("p2r",";|#eta_{jet}|;p_{T,gen} (GeV);"
-			       "p_{T,jet}/p_{T,gen}",
-			       nxd,vxd, nptd, vptd);
-       h->p2effz = new TProfile2D("p2effz",";|#eta_{gen}|;p_{T,gen} (GeV);"
-				  "Vertex efficiency",
-				  nxd,vxd, nptd, vptd);
-       h->p2eff = new TProfile2D("p2eff",";|#eta_{gen}|;p_{T,gen} (GeV);"
-				 "Efficiency",
-				 nxd,vxd, nptd, vptd);
-       h->p2pur = new TProfile2D("p2pur",";|#eta_{jet}|;p_{T,jet} (GeV);"
-				 "Purity",
-				 nxd,vxd, nptd, vptd);
-     } // isMC && doMCtruth
-   
-     // Jet veto per trigger
-     if (doJetveto) {
-       if (debug) cout << "Setup doJetveto " << trgpt << endl << flush;
-	 
-       dout->mkdir("Jetveto");
-       dout->cd("Jetveto");
-       
-       jetvetoHistos *h = new jetvetoHistos();
-       
-       string &t = vtrg[itrg];
-       mhjv[t] = h;
-       h->trg = t;
-       h->trgpt = trgpt;
-       
-       struct range &r  = mt[t];
-       h->ptmin = r.ptmin;
-       h->ptmax = r.ptmax;
-       h->absetamin = r.absetamin;
-       h->absetamax = r.absetamax;
-       
-       // Plots with inclusive jet selection
-       h->h2pteta_all = new TH2D("h2pteta_all",";#eta;p_{T} (GeV);N_{jet}",
-				 nx,vx,npti,vpti);
-       h->h2pteta_sel = new TH2D("h2pteta_sel",";#eta;p_{T} (GeV);N_{jet}",
-				 nx,vx,npti,vpti);
-       h->h2phieta = new TH2D("h2phieta",";#eta;#phi;N_{jet}",
-			      nx,vx, 72,-TMath::Pi(),+TMath::Pi());
-       
-       if (doPFComposition) {
-	 h->p2chf = new TProfile2D("p2chf",";#eta;#phi;CHF (DM)",
-				   nx,vx, 72,-TMath::Pi(),+TMath::Pi());
-	 h->p2nef = new TProfile2D("p2nef",";#eta;#phi;NEF (DM)",
-				   nx,vx, 72,-TMath::Pi(),+TMath::Pi());
-	 h->p2nhf = new TProfile2D("p2nhf",";#eta;#phi;NHF (DM)",
-				   nx,vx, 72,-TMath::Pi(),+TMath::Pi());
-       }
-       
-       // Plots with dijet selection, pTave bins
-       if (doJetvetoVariants) {
-	 h->h2ptaeta_all = new TH2D("h2ptaeta_all",";#eta;p_{T} (GeV);"
-				    "N_{jet}",nx,vx,npti,vpti);
-	 h->h2ptaeta_sel = new TH2D("h2ptaeta_sel",";#eta;p_{T} (GeV);"
-				    "N_{jet}",nx,vx,npti,vpti);
-       }
-       h->h2phieta_ave = new TH2D("h2phieta_ave",";#eta;#phi;N_{jet}",
-				  nx,vx, 72,-TMath::Pi(),+TMath::Pi());
-       h->p2asymm = new TProfile2D("p2asymm",";#eta;#phi;Asymmetry",
-				   nx,vx, 72,-TMath::Pi(),+TMath::Pi());
+  bool doJSON = (true && !isMC);
+  if (doJSON) {
+    if (!LoadJSON()) {
+      cout << "Issues loading the JSON file; aborting..." << endl << flush;
+      exit(0);
+    }
+  }
+  int _nbadevts_json(0);
 
-       
-       if (doJetvetoVariants) {
-	 // Plots with dijet selection, pTtag bins
-	 h->h2ptteta_all= new TH2D("h2ptteta_all",";#eta;p_{T} (GeV);N_{jet}",
-				   nx,vx,npti,vpti);
-	 h->h2ptteta_sel= new TH2D("h2ptteta_sel",";#eta;p_{T} (GeV);N_{jet}",
-				   nx,vx,npti,vpti);
-	 h->h2phieta_tag = new TH2D("h2phieta_tag",";#eta;#phi;N_{jet}",
-				    nx,vx, 72,-TMath::Pi(),+TMath::Pi());
-	   
-	 if (doPFComposition) {
-	   
-	   h->p2chftp = new TProfile2D("p2chftp",";#eta;#phi;CHF (TP)",
-				       nx,vx, 72,-TMath::Pi(),+TMath::Pi());
-	   h->p2neftp = new TProfile2D("p2neftp",";#eta;#phi;NEF (TP)",
-				       nx,vx, 72,-TMath::Pi(),+TMath::Pi());
-	   h->p2nhftp = new TProfile2D("p2nhftp",";#eta;#phi;NHF (TP)",
-				       nx,vx, 72,-TMath::Pi(),+TMath::Pi());
-	 }
-       }
-     } // doJetVeto
+  bool doTrigger = true;  //(true && !isMC);
+  int _nbadevts_trg(0);
+  int _nbadevts_fwdtrg(0);
+  int _ngoodevts(0);
 
-     // Inclusive jet per trigger
-     if (doIncjet) {
-       if (debug) cout << "Setup doIncjet " << trgpt << endl << flush;
-       
-       dout->mkdir("Incjet");
-       dout->cd("Incjet");
-       
-       incjetHistos *h = new incjetHistos();
-       
-       string &t = vtrg[itrg];
-       mhij[t] = h;
-       h->trg = t;
-       h->trgpt = trgpt;
-       
-       struct range &r  = mt[t];
-       h->ptmin = r.ptmin;
-       h->ptmax = r.ptmax;
-       h->absetamin = r.absetamin;
-       h->absetamax = r.absetamax;
-       
-       h->h2pteta_all = new TH2D("h2pteta_all",";#eta;p_{T} (GeV);N_{jet}",
-				 nx,vx,npti,vpti);
-       h->h2pteta_sel = new TH2D("h2pteta_sel",";#eta;p_{T} (GeV);N_{jet}",
-				 nx,vx,npti,vpti);
-       
-       h->hpt13 = new TH1D("hpt13",";p_{T,jet} (GeV)",npti,vpti);
-       for (int iy = 0; iy != h->ny; ++iy) {
-	 h->vpt[iy] = new TH1D(Form("hpt%02d",5*(iy+1)),";p_{T} (GeV);"
-			       "N_{jet}",npti,vpti);
-       } // for iy
+  // Listing of runs and LS
+  int nrun(0), nls(0), nevt(0);
+  map<int, map<int, int> > mrunls;
 
-       if (doPFComposition) {
-	 
-	 dout->mkdir("Incjet/PFcomposition");
-	 dout->cd("Incjet/PFcomposition");
+  map<string, mctruthHistos *> mhmc;
+  map<string, jetvetoHistos *> mhjv;
+  map<string, incjetHistos *> mhij;
+  map<string, dijetHistos *> mhdj;
+  map<string, dijetHistos2 *> mhdj2;
+  map<string, multijetHistos *> mhmj;
 
-	 h->p2pt = new TProfile2D("p2pt",";#eta;p_{T,jet} (GeV);"
-				  "p_{T,jet}", nx, vx, npt, vpt);
-	 h->p2rho = new TProfile2D("p2rho",";#eta;p_{T,jet} (GeV);"
-				   "#rho", nx, vx, npt, vpt);
-	 h->p2chf = new TProfile2D("p2chf",";#eta;p_{T,jet} (GeV);"
-				   "CHF", nx, vx, npt, vpt);
-	 h->p2nhf = new TProfile2D("p2nhf",";#eta;p_{T,jet} (GeV);"
-				   "NHF", nx, vx, npt, vpt);
-	 h->p2nef = new TProfile2D("p2nef",";#eta;p_{T,jet} (GeV);"
-				   "NEF", nx, vx, npt, vpt);
-	 h->p2cef = new TProfile2D("p2cef",";#eta;p_{T,jet} (GeV);"
-				   "CEF", nx, vx, npt, vpt);
-	 h->p2muf = new TProfile2D("p2muf",";#eta;p_{T,jet} (GeV);"
-				   "MUF", nx, vx, npt, vpt);
+  // for each trigger make a directory and cd into it
+  for (int itrg = 0; itrg != ntrg; ++itrg) {
+    if (debug) cout << "Trigger " << vtrg[itrg] << endl << flush;
 
-	 h->ppt13 = new TProfile("ppt13",";#eta;p_{T,jet} (GeV);"
-				 "p_{T,jet}", npt, vpt);
-	 h->prho13 = new TProfile("prho13",";#eta;p_{T,jet} (GeV);"
-				 "#rho", npt, vpt);
-	 h->pchf13 = new TProfile("pchf13",";#eta;p_{T,jet} (GeV);"
-				  "CHF", npt, vpt);
-	 h->pnhf13 = new TProfile("pnhf13",";#eta;p_{T,jet} (GeV);"
-				  "NHF", npt, vpt);
-	 h->pnef13 = new TProfile("pnef13",";#eta;p_{T,jet} (GeV);"
-				  "NEF", npt, vpt);
-	 h->pcef13 = new TProfile("pcef13",";#eta;p_{T,jet} (GeV);"
-				  "CEF", npt, vpt);
-	 h->pmuf13 = new TProfile("pmuf13",";#eta;p_{T,jet} (GeV);"
-				  "MUF", npt, vpt);
-       }
-     } // incjet
+    fout->mkdir(vtrg[itrg].c_str());
+    fout->cd(vtrg[itrg].c_str());
+    TDirectory *dout = gDirectory;
 
-     // Dijet per trigger
-     if (doDijet) {
-       if (debug) cout << "Setup doDijet " << trgpt << endl << flush;
-       
-       dout->mkdir("Dijet");
-       dout->cd("Dijet");
-       
-       dijetHistos *h = new dijetHistos();
-       
-       string &t = vtrg[itrg];
-       mhdj[t] = h;
-       h->trg = t;
-       h->trgpt = trgpt;
-       
-       struct range &r  = mt[t];
-       h->ptmin = r.ptmin;
-       h->ptmax = r.ptmax;
-       h->absetamin = r.absetamin;
-       h->absetamax = r.absetamax;
-       
-       // Counting of events, and JEC L2L3Res for undoing
-       h->h2pteta_aball = new TH2D("h2pteta_aball",";#eta;p_{T,avp} (GeV);"
-				   "N_{events}",nx,vx, npt, vpt);
-       h->h2pteta_absel = new TH2D("h2pteta_absel",";#eta;p_{T,avp} (GeV);"
-				   "N_{events}",nx,vx, npt, vpt);
-       h->p2resab = new TProfile2D("p2resab",";#eta;p_{T,avp} (GeV);"
-				   "JES(probe)/JES(tag)",
-				   nx,vx, npt, vpt);
-       
-       // MPF decomposition for HDM method
-       h->p2m0ab = new TProfile2D("p2m0ab",";#eta;p_{T,avp} (GeV);MPF0",
-				    nx,vx, npt, vpt);
-       h->p2m2ab = new TProfile2D("p2m2ab",";#eta;p_{T,avp} (GeV);MPF2",
-				  nx,vx, npt, vpt);
-       h->p2mnab = new TProfile2D("p2mnab",";#eta;p_{T,avp} (GeV);MPFn",
-				  nx,vx, npt, vpt);
-       h->p2muab = new TProfile2D("p2muab",";#eta;p_{T,avp} (GeV);MPFu",
-				  nx,vx, npt, vpt);
-       
-       // Variants with different binnings and with error on the mean
-       h->h2pteta_adall = new TH2D("h2pteta_adall",";#eta;p_{T,ave} (GeV);"
-				   "N_{events}",nx,vx, npt, vpt);
-       h->h2pteta_adsel = new TH2D("h2pteta_adsel",";#eta;p_{T,ave} (GeV);"
-				   "N_{events}",nx,vx, npt, vpt);
-       h->p2resad = new TProfile2D("p2resad",";#eta;p_{T,ave} (GeV);"
-				   "JES(probe)/JES(tag)",
-				   nx,vx, npt, vpt);
-	 
-       // MPF decomposition for HDM method
-       h->p2m0ad = new TProfile2D("p2m0ad",";#eta;p_{T,ave} (GeV);MPF0",
-				  nx,vx, npt, vpt);
-       h->p2m2ad = new TProfile2D("p2m2ad",";#eta;p_{T,ave} (GeV);MPF2",
-				  nx,vx, npt, vpt);
-       h->p2mnad = new TProfile2D("p2mnad",";#eta;p_{T,ave} (GeV);MPFn",
-				  nx,vx, npt, vpt);
-       h->p2muad = new TProfile2D("p2muad",";#eta;p_{T,ave} (GeV);MPFu",
-				  nx,vx, npt, vpt);
-       
-       h->h2pteta_tcall = new TH2D("h2pteta_tcall",";#eta;p_{T,ave} (GeV);"
-				   "N_{events}",nx,vx, npt, vpt);
-       h->h2pteta_tcsel = new TH2D("h2pteta_tcsel",";#eta;p_{T,ave} (GeV);"
-				   "N_{events}",nx,vx, npt, vpt);
-       h->p2restc = new TProfile2D("p2restc",";#eta;p_{T,ave} (GeV);"
-				   "JES(probe)/JES(tag)",
-				   nx,vx, npt, vpt);
-       
-       h->p2m0tc = new TProfile2D("p2m0tc",";#eta;p_{T,tag} (GeV);MPF0",
-				  nx,vx, npt, vpt);
-       h->p2m2tc = new TProfile2D("p2m2tc",";#eta;p_{T,tag} (GeV);MPF2",
-				  nx,vx, npt, vpt);
-       h->p2mntc = new TProfile2D("p2mntc",";#eta;p_{T,tag} (GeV);MPFn",
-				  nx,vx, npt, vpt);
-       h->p2mutc = new TProfile2D("p2mutc",";#eta;p_{T,tag} (GeV);MPFu",
-				  nx,vx, npt, vpt);
-       
-       h->h2pteta_pfall = new TH2D("h2pteta_pfall",";#eta;p_{T,ave} (GeV);"
-				   "N_{events}",nx,vx, npt, vpt);
-       h->h2pteta_pfsel = new TH2D("h2pteta_pfsel",";#eta;p_{T,ave} (GeV);"
-				   "N_{events}",nx,vx, npt, vpt);
-       h->p2respf = new TProfile2D("p2respf",";#eta;p_{T,ave} (GeV);"
-				   "JES(probe)/JES(tag)",
-				   nx,vx, npt, vpt);
-       
-       h->p2m0pf = new TProfile2D("p2m0pf",";#eta;p_{T,probe} (GeV);MPF0",
-				  nx,vx, npt, vpt);
-       h->p2m2pf = new TProfile2D("p2m2pf",";#eta;p_{T,probe} (GeV);MPF2",
-				  nx,vx, npt, vpt);
-       h->p2mnpf = new TProfile2D("p2mnpf",";#eta;p_{T,probe} (GeV);MPFn",
-				  nx,vx, npt, vpt);
-       h->p2mupf = new TProfile2D("p2mupf",";#eta;p_{T,probe} (GeV);MPFu",
-				  nx,vx, npt, vpt);
-       
-       if (doDijetJER) {
-	 dout->mkdir("Dijet/JER");
-	 dout->cd("Dijet/JER");
-	   
-	 // Basic profiles with RMS as error ("S") for JER studies
-	 h->p2m0 = new TProfile2D("p2m0",";#eta;p_{T,avp} (GeV);"
-				  "MPF0 (MPF)",nx,vx, npt, vpt, "S");
-	 h->p2m0x = new TProfile2D("p2m0x",";#eta;p_{T,avp} (GeV);"
-				   "MPFX0 (MPFX)",nx,vx, npt, vpt, "S");
-	 h->p2m2 = new TProfile2D("p2m2",";#eta;p_{T,avp} (GeV);"
-				  "MPF2 (DB)",nx,vx, npt, vpt, "S");
-	 h->p2m2x = new TProfile2D("p2m2x",";#eta;p_{T,avp} (GeV);"
-				   "MPF2 (DBX)",nx,vx, npt, vpt, "S");
-       }
-       
-       if (doPFComposition) {
-	 
-	 dout->mkdir("Dijet/PFcomposition");
-	 dout->cd("Dijet/PFcomposition");
+    // Figure out trigger pT threshold from the name
+    int trgpt(-1), nfound(0);
+    if (nfound != 1) {
+      nfound = (vtrg[itrg] == "HLT_ZeroBias" || vtrg[itrg] == "HLT_MC" ? 1 : 0);
+      trgpt = 0;
+    }
+    if (nfound != 1) nfound = sscanf(vtrg[itrg].c_str(), "HLT_PFJet%d", &trgpt);
+    if (nfound != 1)
+      nfound = sscanf(vtrg[itrg].c_str(), "HLT_PFJetFwd%d", &trgpt);
+    if (nfound != 1)
+      nfound = sscanf(vtrg[itrg].c_str(), "HLT_DiPFJetAve%d", &trgpt);
+    if (nfound != 1)
+      nfound = sscanf(vtrg[itrg].c_str(), "HLT_DiPFJetAve%d_HFJEC", &trgpt);
+    if (!(nfound == 1 && trgpt != -1)) {
+      cout << "trigger " << vtrg[itrg] << ": nfound=" << nfound
+           << ", trgpt = " << trgpt << endl
+           << flush;
+    }
+    assert(nfound == 1);
+    assert(trgpt != -1);
 
-	 h->p2pt = new TProfile2D("p2pt",";#eta;p_{T,avp} (GeV);"
-				   "p_{T,probe}", nx, vx, npt, vpt);
-	 h->p2rho = new TProfile2D("p2rho",";#eta;p_{T,avp} (GeV);"
-				   "#rho", nx, vx, npt, vpt);
-	 h->p2chf = new TProfile2D("p2chf",";#eta;p_{T,avp} (GeV);"
-				   "CHF", nx, vx, npt, vpt);
-	 h->p2nhf = new TProfile2D("p2nhf",";#eta;p_{T,avp} (GeV);"
-				   "NHF", nx, vx, npt, vpt);
-	 h->p2nef = new TProfile2D("p2nef",";#eta;p_{T,avp} (GeV);"
-				   "NEF", nx, vx, npt, vpt);
-	 h->p2cef = new TProfile2D("p2cef",";#eta;p_{T,avp} (GeV);"
-				   "CEF", nx, vx, npt, vpt);
-	 h->p2muf = new TProfile2D("p2muf",";#eta;p_{T,avp} (GeV);"
-				   "MUF", nx, vx, npt, vpt);
+    // triggers for Monte Carlo
+    if (isMC && doMCtruth && vtrg[itrg] == "HLT_MC") {
+      if (debug) cout << "Setup MC truth" << endl << flush;
 
-	 h->ppt13 = new TProfile("ppt13",";#eta;p_{T,avp} (GeV);"
-				 "p_{T,tag}", npt, vpt);
-	 h->prho13 = new TProfile("prho13",";#eta;p_{T,avp} (GeV);"
-				  "#rho", npt, vpt);
-	 h->pchf13 = new TProfile("pchf13",";#eta;p_{T,avp} (GeV);"
-				  "CHF", npt, vpt);
-	 h->pnhf13 = new TProfile("pnhf13",";#eta;p_{T,avp} (GeV);"
-				  "NHF", npt, vpt);
-	 h->pnef13 = new TProfile("pnef13",";#eta;p_{T,avp} (GeV);"
-				  "NEF", npt, vpt);
-	 h->pcef13 = new TProfile("pcef13",";#eta;p_{T,avp} (GeV);"
-				  "CEF", npt, vpt);
-	 h->pmuf13 = new TProfile("pmuf13",";#eta;p_{T,avp} (GeV);"
-				  "MUF", npt, vpt);
-       }
-       
-     } // doDijet
+      dout->mkdir("MCtruth");
+      dout->cd("MCtruth");
 
-     if (doDijet2) {
-       if (debug) cout << "Setup doDijet2 " << trgpt << endl << flush;
-       
-       dout->mkdir("Dijet2");
-       dout->cd("Dijet2");
-       
-       dijetHistos2 *h = new dijetHistos2();
-       
-       string &t = vtrg[itrg];
-       mhdj2[t] = h;
-       h->trg = t;
-       h->trgpt = trgpt;
-       
-       struct range &r  = mt[t];
-       h->ptmin = r.ptmin;
-       h->ptmax = r.ptmax;
-       h->absetamin = r.absetamin;
-       h->absetamax = r.absetamax;
-       
-       // Counting of events, and JEC L2L3Res+JERSF for undoing
-       h->h2pteta = new TH2D("h2pteta",";#eta;p_{T,avp} (GeV);"
-			     "N_{events}",nxd,vxd, nptd, vptd);
-       h->p2res = new TProfile2D("p2res",";#eta;p_{T,avp} (GeV);"
-				 "JES(probe)/JES(tag)",
-				 nxd,vxd, nptd, vptd);
-       h->p2jsf = new TProfile2D("p2jsf",";#eta;p_{T,avp} (GeV);"
-				 "JERSF(probe)/JERSF(tag)",
-				 nxd,vxd, nptd, vptd);
-       
-       // MPF decomposition for HDM method
-       h->p2m0 = new TProfile2D("p2m0",";#eta;p_{T,avp} (GeV);MPF0",
-				nxd,vxd, nptd, vptd);
-       h->p2m2 = new TProfile2D("p2m2",";#eta;p_{T,avp} (GeV);MPF2",
-				nxd,vxd, nptd, vptd);
-       h->p2mn = new TProfile2D("p2mn",";#eta;p_{T,avp} (GeV);MPFn",
-				nxd,vxd, nptd, vptd);
-       h->p2mu = new TProfile2D("p2mu",";#eta;p_{T,avp} (GeV);MPFu",
-				nxd,vxd, nptd, vptd);
-       
-       h->p2m0x = new TProfile2D("p2m0x",";#eta;p_{T,avp} (GeV);"
-				 "MPF0X (MPFX)",nxd,vxd, nptd, vptd, "S");
-       h->p2m2x = new TProfile2D("p2m2x",";#eta;p_{T,avp} (GeV);"
-				 "MPF2X (DBX)",nxd,vxd, nptd, vptd, "S");
+      mctruthHistos *h = new mctruthHistos();
 
-       // Extra for FRS studies
-       h->p2mnu = new TProfile2D("p2mnu",";#eta;p_{T,avp} (GeV);MPFnu",
-				 nxd,vxd, nptd, vptd);
-       h->p2mnx = new TProfile2D("p2mnx",";#eta;p_{T,avp} (GeV);"
-				 "MPFNX",nxd,vxd, nptd, vptd, "S");
-       h->p2mux = new TProfile2D("p2mux",";#eta;p_{T,avp} (GeV);"
-				 "MPFUX",nxd,vxd, nptd, vptd, "S");
-       h->p2mnux = new TProfile2D("p2mnux",";#eta;p_{T,avp} (GeV);"
-				  "MPFNUX",nxd,vxd, nptd, vptd, "S");
+      string &t = vtrg[itrg];
+      mhmc[t] = h;
 
-       h->h2ptetatc = new TH2D("h2ptetatc",";#eta;p_{T,tag} (GeV);"
-			       "N_{events}",nxd,vxd, nptd, vptd);
-       h->p2restc = new TProfile2D("p2restc",";#eta;p_{T,tag} (GeV);"
-				   "JES(probe)/JES(tag)",
-				   nxd,vxd, nptd, vptd);
-       h->p2jsftc = new TProfile2D("p2jsftc ",";#eta;p_{T,tag} (GeV);"
-				   "JERSF(probe)/JERSF(tag)",
-				   nxd,vxd, nptd, vptd);
-       h->p2m0tc = new TProfile2D("p2m0tc",";#eta;p_{T,tag} (GeV);MPF0",
-				  nxd,vxd, nptd, vptd);
-       h->p2m2tc = new TProfile2D("p2m2tc",";#eta;p_{T,tag} (GeV);MPF2",
-				  nxd,vxd, nptd, vptd);
-       h->p2mntc = new TProfile2D("p2mntc",";#eta;p_{T,tag} (GeV);MPFn",
-				  nxd,vxd, nptd, vptd);
-       h->p2mutc = new TProfile2D("p2mutc",";#eta;p_{T,tag} (GeV);MPFu",
-				  nxd,vxd, nptd, vptd);
+      // $ What here can go?
+      // h->trg = t;
+      // h->trgpt = trgpt;
+      // struct range &r  = mt[t];
+      // h->ptmin = r.ptmin;
+      // h->ptmax = r.ptmax;
+      // h->absetamin = r.absetamin;
+      // h->absetamax = r.absetamax;
 
-       h->h2ptetapf = new TH2D("h2ptetapf",";#eta;p_{T,probe} (GeV);"
-			       "N_{events}",nxd,vxd, nptd, vptd);
-       h->p2respf = new TProfile2D("p2respf",";#eta;p_{T,probe} (GeV);"
-				   "JES(probe)/JES(tag)",
-				   nxd,vxd, nptd, vptd);
-       h->p2jsfpf = new TProfile2D("p2jsfpf",";#eta;p_{T,probe} (GeV);"
-				   "JERSF(probe)/JERSF(tag)",
-				   nxd,vxd, nptd, vptd);
-       h->p2m0pf = new TProfile2D("p2m0pf",";#eta;p_{T,probe} (GeV);MPF0",
-				  nxd,vxd, nptd, vptd);
-       h->p2m2pf = new TProfile2D("p2m2pf",";#eta;p_{T,probe} (GeV);MPF2",
-				  nxd,vxd, nptd, vptd);
-       h->p2mnpf = new TProfile2D("p2mnpf",";#eta;p_{T,probe} (GeV);MPFn",
-				  nxd,vxd, nptd, vptd);
-       h->p2mupf = new TProfile2D("p2mupf",";#eta;p_{T,probe} (GeV);MPFu",
-				  nxd,vxd, nptd, vptd);
-	      
-       if (doDijet2NM) {
-	 assert(false);
-	 // separate TProfile2D for NM=1, NM=2, NM=3+ (no JetID if has NM>1)
-       }
-     } // doDijet2
+      h->h2pteta = new TH2D("h2pteta",
+                            ";|#eta_{jet}|;p_{T,gen} (GeV);"
+                            "N_{events}",
+                            nxd, vxd, nptd, vptd);
+      h->h2pteta_gen = new TH2D("h2pteta_gen",
+                                ";|#eta_{gen}|;p_{T,gen} (GeV);"
+                                "N_{events}",
+                                nxd, vxd, nptd, vptd);
+      h->h2pteta_rec = new TH2D("h2pteta_rec",
+                                ";|#eta_{jet}|;p_{T,jet} (GeV);"
+                                "N_{events}",
+                                nxd, vxd, nptd, vptd);
+      h->p2jes = new TProfile2D("p2jes",
+                                ";|#eta_{jet}|;p_{T,gen} (GeV);"
+                                "JES(jet)",
+                                nxd, vxd, nptd, vptd);
+      h->p2jsf = new TProfile2D("p2jsf",
+                                ";|#eta_{jet}|;p_{T,gen} (GeV);"
+                                "JERSF(jet)",
+                                nxd, vxd, nptd, vptd);
+      h->p2r = new TProfile2D("p2r",
+                              ";|#eta_{jet}|;p_{T,gen} (GeV);"
+                              "p_{T,jet}/p_{T,gen}",
+                              nxd, vxd, nptd, vptd);
+      h->p2effz = new TProfile2D("p2effz",
+                                 ";|#eta_{gen}|;p_{T,gen} (GeV);"
+                                 "Vertex efficiency",
+                                 nxd, vxd, nptd, vptd);
+      h->p2eff = new TProfile2D("p2eff",
+                                ";|#eta_{gen}|;p_{T,gen} (GeV);"
+                                "Efficiency",
+                                nxd, vxd, nptd, vptd);
+      h->p2pur = new TProfile2D("p2pur",
+                                ";|#eta_{jet}|;p_{T,jet} (GeV);"
+                                "Purity",
+                                nxd, vxd, nptd, vptd);
+    }  // isMC && doMCtruth
 
-     // Multijet per trigger
-     if (doMultijet) {
-       
-       if (debug) cout << "Setup doMultijet " << trgpt << endl << flush;
-       
-       dout->mkdir("Multijet");
-       dout->cd("Multijet");
-       
-       multijetHistos *h = new multijetHistos();
-       
-       string &t = vtrg[itrg];
-       mhmj[t] = h;
-       h->trg = t;
-       h->trgpt = trgpt;
-       
-       struct range &r  = mt[t];
-       h->ptmin = r.ptmin;
-       h->ptmax = r.ptmax;
-       h->absetamin = r.absetamin;
-       h->absetamax = r.absetamax;
-       
-       h->hpta_all = new TH1D("hpta_all","",npti,vpti);
-       h->hpta_sel = new TH1D("hpta_sel","",npti,vpti);
-       h->presa = new TProfile("presa","",npti,vpti);
-       h->ptleada = new TProfile("ptleada","",npti,vpti);	 
-       h->pcrecoila = new TProfile("pcrecoila","",npti,vpti);	 
-       
-       h->pm0a = new TProfile("pm0a","",npti,vpti);
-       h->pm2a = new TProfile("pm2a","",npti,vpti);
-       h->pmna = new TProfile("pmna","",npti,vpti);
-       h->pmua = new TProfile("pmua","",npti,vpti);
+    // Jet veto per trigger
+    if (doJetveto) {
+      if (debug) cout << "Setup doJetveto " << trgpt << endl << flush;
 
-       h->hptm_all = new TH1D("hptm_all","",npti,vpti);
-       h->hptm_sel = new TH1D("hptm_sel","",npti,vpti);
-       h->presm = new TProfile("presm","",npti,vpti);
-       h->ptleadm = new TProfile("ptleadm","",npti,vpti);
-       h->pcrecoilm = new TProfile("pcrecoilm","",npti,vpti);	 
-       
-       h->pm0m = new TProfile("pm0m","",npti,vpti);
-       h->pm2m = new TProfile("pm2m","",npti,vpti);
-       h->pmnm = new TProfile("pmnm","",npti,vpti);
-       h->pmum = new TProfile("pmum","",npti,vpti);
-       
-       h->hptl_all = new TH1D("hptl_all","",npti,vpti);
-       h->hptl_sel = new TH1D("hptl_sel","",npti,vpti);
-       h->presl = new TProfile("presl","",npti,vpti);
-       h->ptleadl = new TProfile("ptleadl","",npti,vpti);
-       h->pcrecoill = new TProfile("pcrecoill","",npti,vpti);
-       
-       h->pm0l = new TProfile("pm0l","",npti,vpti);
-       h->pm2l = new TProfile("pm2l","",npti,vpti);
-       h->pmnl = new TProfile("pmnl","",npti,vpti);
-       h->pmul = new TProfile("pmul","",npti,vpti);
+      dout->mkdir("Jetveto");
+      dout->cd("Jetveto");
 
-       h->hptr_all = new TH1D("hptr_all","",npti,vpti);
-       h->hptr_sel = new TH1D("hptr_sel","",npti,vpti);
-       h->presr = new TProfile("presr","",npti,vpti);
-       h->ptleadr = new TProfile("ptleadr","",npti,vpti);
-       h->pcrecoilr = new TProfile("pcrecoilr","",npti,vpti);
-       
-       h->pm0r = new TProfile("pm0r","",npti,vpti);
-       h->pm2r = new TProfile("pm2r","",npti,vpti);
-       h->pmnr = new TProfile("pmnr","",npti,vpti);
-       h->pmur = new TProfile("pmur","",npti,vpti);
+      jetvetoHistos *h = new jetvetoHistos();
 
-       if (doMultijetControl) {
-	 h->h2m0a = new TH2D("h2m0a","",npti,vpti,200,-1,3);
-	 h->h2m2a = new TH2D("h2m2a","",npti,vpti,200,-1,3);
-	 h->hcosdphi = new TH1D("hcosdphi","",102,-1.01,1.01);
-       }
-       if (doMultijet2Drecoil) {
-	 dout->mkdir("Multijet/2Drecoil");
-	 dout->cd("Multijet/2Drecoil");
-	 h->h2recoila = new TH2D("h2recoila","",npti,vpti,npti,vpti);
-	 h->h2recoilm = new TH2D("h2recoilm","",npti,vpti,npti,vpti);
-	 h->h2recoill = new TH2D("h2recoill","",npti,vpti,npti,vpti);
-	 h->h2recoilr = new TH2D("h2recoilr","",npti,vpti,npti,vpti);
-       }
-       if (doPFComposition) {	 
-	 dout->mkdir("Multijet/PFcomposition");
-	 dout->cd("Multijet/PFcomposition");
+      string &t = vtrg[itrg];
+      mhjv[t] = h;
+      h->trg = t;
+      h->trgpt = trgpt;
 
-	 h->ppt13 = new TProfile("ppt13",";#eta;p_{T,avp} (GeV);"
-				 "p_{T,lead}", npti, vpti);
-	 h->prho13 = new TProfile("prho13",";#eta;p_{T,avp} (GeV);"
-				  "#rho", npti, vpti);
-	 h->pchf13 = new TProfile("pchf13",";#eta;p_{T,avp} (GeV);"
-				  "CHF", npti, vpti);
-	 h->pnhf13 = new TProfile("pnhf13",";#eta;p_{T,avp} (GeV);"
-				  "NHF", npti, vpti);
-	 h->pnef13 = new TProfile("pnef13",";#eta;p_{T,avp} (GeV);"
-				  "NEF", npti, vpti);
-	 h->pcef13 = new TProfile("pcef13",";#eta;p_{T,avp} (GeV);"
-				  "CEF", npti, vpti);
-	 h->pmuf13 = new TProfile("pmuf13",";#eta;p_{T,avp} (GeV);"
-				  "MUF", npti, vpti);
+      struct range &r = mt[t];
+      h->ptmin = r.ptmin;
+      h->ptmax = r.ptmax;
+      h->absetamin = r.absetamin;
+      h->absetamax = r.absetamax;
 
-	 h->ppt25 = new TProfile("ppt25",";#eta;p_{T,avp} (GeV);"
-				 "p_{T,recoil}", npti, vpti);
-	 h->prho25 = new TProfile("prho25",";#eta;p_{T,avp} (GeV);"
-				  "#rho", npti, vpti);
-	 h->pchf25 = new TProfile("pchf25",";#eta;p_{T,avp} (GeV);"
-				  "CHF", npti, vpti);
-	 h->pnhf25 = new TProfile("pnhf25",";#eta;p_{T,avp} (GeV);"
-				  "NHF", npti, vpti);
-	 h->pnef25 = new TProfile("pnef25",";#eta;p_{T,avp} (GeV);"
-				  "NEF", npti, vpti);
-	 h->pcef25 = new TProfile("pcef25",";#eta;p_{T,avp} (GeV);"
-				  "CEF", npti, vpti);
-	 h->pmuf25 = new TProfile("pmuf25",";#eta;p_{T,avp} (GeV);"
-				  "MUF", npti, vpti);
-       }
-       
-     } // doMultijet
-     
-   } // for itrg
+      // Plots with inclusive jet selection
+      h->h2pteta_all = new TH2D("h2pteta_all", ";#eta;p_{T} (GeV);N_{jet}", nx,
+                                vx, npti, vpti);
+      h->h2pteta_sel = new TH2D("h2pteta_sel", ";#eta;p_{T} (GeV);N_{jet}", nx,
+                                vx, npti, vpti);
+      h->h2phieta = new TH2D("h2phieta", ";#eta;#phi;N_{jet}", nx, vx, 72,
+                             -TMath::Pi(), +TMath::Pi());
 
-   if (debugevent) cout << "Load jet veto maps" << endl << flush;
+      if (doPFComposition) {
+        h->p2chf = new TProfile2D("p2chf", ";#eta;#phi;CHF (DM)", nx, vx, 72,
+                                  -TMath::Pi(), +TMath::Pi());
+        h->p2nef = new TProfile2D("p2nef", ";#eta;#phi;NEF (DM)", nx, vx, 72,
+                                  -TMath::Pi(), +TMath::Pi());
+        h->p2nhf = new TProfile2D("p2nhf", ";#eta;#phi;NHF (DM)", nx, vx, 72,
+                                  -TMath::Pi(), +TMath::Pi());
+      }
 
-   // Load veto maps
-   // JECDatabase/jet_veto_maps/Summer19UL16_V0/hotjets-UL16.root
-   // JECDatabase/jet_veto_maps/Summer19UL17_V2/hotjets-UL17_v2.root
-   // JECDatabase/jet_veto_maps/Summer19UL18_V1/hotjets-UL18.root
-   TFile *fjv(0);
-   if (isRun2==1 || isRun2==2) //TString(ds.c_str()).Contains("2016"))
-     fjv = new TFile("rootfiles/hotjets-UL16.root","READ");
-   if (isRun2==3) //TString(ds.c_str()).Contains("2017"))
-	fjv = new TFile("rootfiles/hotjets-UL17_v2.root","READ");
-   if (isRun2==4) //TString(ds.c_str()).Contains("2018"))
-	fjv = new TFile("rootfiles/hotjets-UL18.root","READ");
-   assert(fjv);
-   
-   // Veto lists for different years (NB: extra MC map for UL16):
-   // h2hot_ul16_plus_hbm2_hbp12_qie11 + h2hot_mc (for UL16)
-   // h2hot_ul17_plus_hep17_plus_hbpw89 (UL17)
-   // h2hot_ul18_plus_hem1516_and_hbp2m1 (UL18)
-   TH2D *h2jv(0);
-   if (isRun2==1 || isRun2==2) { //TString(ds.c_str()).Contains("2016")) {
-     h2jv = (TH2D*)fjv->Get("h2hot_ul16_plus_hbm2_hbp12_qie11");
-     assert(h2jv);
-     TH2D *h2mc = (TH2D*)fjv->Get("h2hot_mc");
-     assert(h2mc);
-     h2jv->Add(h2mc);
-   }
-   if (isRun2==3) //TString(ds.c_str()).Contains("2017"))
-     h2jv = (TH2D*)fjv->Get("h2hot_ul17_plus_hep17_plus_hbpw89");
-   if (isRun2==4) //TString(ds.c_str()).Contains("2018"))
-     h2jv = (TH2D*)fjv->Get("h2hot_ul18_plus_hem1516_and_hbp2m1");
-   assert(h2jv);
-   
-   //Long64_t nentries = fChain->GetEntriesFast();
-   Long64_t nentries = fChain->GetEntries(); // Long startup time
-   cout << "Loaded " << nentries << " entries" << endl << flush;
+      // Plots with dijet selection, pTave bins
+      if (doJetvetoVariants) {
+        h->h2ptaeta_all = new TH2D("h2ptaeta_all",
+                                   ";#eta;p_{T} (GeV);"
+                                   "N_{jet}",
+                                   nx, vx, npti, vpti);
+        h->h2ptaeta_sel = new TH2D("h2ptaeta_sel",
+                                   ";#eta;p_{T} (GeV);"
+                                   "N_{jet}",
+                                   nx, vx, npti, vpti);
+      }
+      h->h2phieta_ave = new TH2D("h2phieta_ave", ";#eta;#phi;N_{jet}", nx, vx,
+                                 72, -TMath::Pi(), +TMath::Pi());
+      h->p2asymm = new TProfile2D("p2asymm", ";#eta;#phi;Asymmetry", nx, vx, 72,
+                                  -TMath::Pi(), +TMath::Pi());
 
-   if (isMG && nentries!=nMG) {
-     cout << "Nentries = "<<nentries<<", expected nMG = "<<nMG<<endl << flush;
-     //assert(false);
-     cout << "Recalculate HT bin counts prior to starting."
-	  << " This will take a few minutes" << endl;
-     hnevt->Reset();
-     for (Long64_t jentry=0; jentry<nentries;jentry++) {
-       Long64_t ientry = LoadTree(jentry);
-       if (ientry < 0) break;
-       b_LHE_HT->GetEntry(ientry); //read only this branch
-       hnevt->Fill(LHE_HT);
-       if (jentry%1000000==0) cout << "." << flush;
-       if (jentry%50000000==0 && jentry!=0) cout << "\nn="<<jentry<<endl<<flush;
-     } // for jentry
-     nMG = nentries;
-     cout << "\nProcessed " << nMG << " entries" << endl << flush;
-     cout << Form("int vnevt[%d] = ",hnevt->GetNbinsX());
-     for (int i = 1; i != hnevt->GetNbinsX()+1; ++i) {
-       cout<<Form("%s%d",(i==1 ? "{" : ", "),int(hnevt->GetBinContent(i)+0.5));
-     }
-     cout << "}; // " << dataset << endl << flush;
-   } // isMC && nentries!=nMG
+      if (doJetvetoVariants) {
+        // Plots with dijet selection, pTtag bins
+        h->h2ptteta_all = new TH2D("h2ptteta_all", ";#eta;p_{T} (GeV);N_{jet}",
+                                   nx, vx, npti, vpti);
+        h->h2ptteta_sel = new TH2D("h2ptteta_sel", ";#eta;p_{T} (GeV);N_{jet}",
+                                   nx, vx, npti, vpti);
+        h->h2phieta_tag = new TH2D("h2phieta_tag", ";#eta;#phi;N_{jet}", nx, vx,
+                                   72, -TMath::Pi(), +TMath::Pi());
 
-   // For trigger matching studies
-   //const int kMaxTrigJet = 3;
-   //Float_t Jet_hltPt[kMaxTrigJet];
-   //Float_t Jet_hltPtClose[kMaxTrigJet];
-   //Float_t Jet_hltPtNear[kMaxTrigJet];
-   //Float_t Jet_hltPtMax[kMaxTrigJet];
-   Float_t Jet_RES[nJetMax];
-   Float_t Jet_deltaJES[nJetMax];
-   Float_t Jet_CF[nJetMax];   
-   Float_t Jet_genDR[nJetMax];
-   //Float_t Jet_smearFactor[nJetMax];
+        if (doPFComposition) {
+          h->p2chftp = new TProfile2D("p2chftp", ";#eta;#phi;CHF (TP)", nx, vx,
+                                      72, -TMath::Pi(), +TMath::Pi());
+          h->p2neftp = new TProfile2D("p2neftp", ";#eta;#phi;NEF (TP)", nx, vx,
+                                      72, -TMath::Pi(), +TMath::Pi());
+          h->p2nhftp = new TProfile2D("p2nhftp", ";#eta;#phi;NHF (TP)", nx, vx,
+                                      72, -TMath::Pi(), +TMath::Pi());
+        }
+      }
+    }  // doJetVeto
 
-   // Main event loop (over nentries)
-   Long64_t nbytes = 0, nb = 0;
-   for (Long64_t jentry=0; jentry<nentries;jentry++) {
+    // Inclusive jet per trigger
+    if (doIncjet) {
+      if (debug) cout << "Setup doIncjet " << trgpt << endl << flush;
+
+      dout->mkdir("Incjet");
+      dout->cd("Incjet");
+
+      incjetHistos *h = new incjetHistos();
+
+      string &t = vtrg[itrg];
+      mhij[t] = h;
+      h->trg = t;
+      h->trgpt = trgpt;
+
+      struct range &r = mt[t];
+      h->ptmin = r.ptmin;
+      h->ptmax = r.ptmax;
+      h->absetamin = r.absetamin;
+      h->absetamax = r.absetamax;
+
+      h->h2pteta_all = new TH2D("h2pteta_all", ";#eta;p_{T} (GeV);N_{jet}", nx,
+                                vx, npti, vpti);
+      h->h2pteta_sel = new TH2D("h2pteta_sel", ";#eta;p_{T} (GeV);N_{jet}", nx,
+                                vx, npti, vpti);
+
+      h->hpt13 = new TH1D("hpt13", ";p_{T,jet} (GeV)", npti, vpti);
+      for (int iy = 0; iy != h->ny; ++iy) {
+        h->vpt[iy] = new TH1D(Form("hpt%02d", 5 * (iy + 1)),
+                              ";p_{T} (GeV);"
+                              "N_{jet}",
+                              npti, vpti);
+      }  // for iy
+
+      if (doPFComposition) {
+        dout->mkdir("Incjet/PFcomposition");
+        dout->cd("Incjet/PFcomposition");
+
+        h->p2pt = new TProfile2D("p2pt",
+                                 ";#eta;p_{T,jet} (GeV);"
+                                 "p_{T,jet}",
+                                 nx, vx, npt, vpt);
+        h->p2rho = new TProfile2D("p2rho",
+                                  ";#eta;p_{T,jet} (GeV);"
+                                  "#rho",
+                                  nx, vx, npt, vpt);
+        h->p2chf = new TProfile2D("p2chf",
+                                  ";#eta;p_{T,jet} (GeV);"
+                                  "CHF",
+                                  nx, vx, npt, vpt);
+        h->p2nhf = new TProfile2D("p2nhf",
+                                  ";#eta;p_{T,jet} (GeV);"
+                                  "NHF",
+                                  nx, vx, npt, vpt);
+        h->p2nef = new TProfile2D("p2nef",
+                                  ";#eta;p_{T,jet} (GeV);"
+                                  "NEF",
+                                  nx, vx, npt, vpt);
+        h->p2cef = new TProfile2D("p2cef",
+                                  ";#eta;p_{T,jet} (GeV);"
+                                  "CEF",
+                                  nx, vx, npt, vpt);
+        h->p2muf = new TProfile2D("p2muf",
+                                  ";#eta;p_{T,jet} (GeV);"
+                                  "MUF",
+                                  nx, vx, npt, vpt);
+
+        h->ppt13 = new TProfile("ppt13",
+                                ";#eta;p_{T,jet} (GeV);"
+                                "p_{T,jet}",
+                                npt, vpt);
+        h->prho13 = new TProfile("prho13",
+                                 ";#eta;p_{T,jet} (GeV);"
+                                 "#rho",
+                                 npt, vpt);
+        h->pchf13 = new TProfile("pchf13",
+                                 ";#eta;p_{T,jet} (GeV);"
+                                 "CHF",
+                                 npt, vpt);
+        h->pnhf13 = new TProfile("pnhf13",
+                                 ";#eta;p_{T,jet} (GeV);"
+                                 "NHF",
+                                 npt, vpt);
+        h->pnef13 = new TProfile("pnef13",
+                                 ";#eta;p_{T,jet} (GeV);"
+                                 "NEF",
+                                 npt, vpt);
+        h->pcef13 = new TProfile("pcef13",
+                                 ";#eta;p_{T,jet} (GeV);"
+                                 "CEF",
+                                 npt, vpt);
+        h->pmuf13 = new TProfile("pmuf13",
+                                 ";#eta;p_{T,jet} (GeV);"
+                                 "MUF",
+                                 npt, vpt);
+      }
+    }  // incjet
+
+    // Dijet per trigger
+    if (doDijet) {
+      if (debug) cout << "Setup doDijet " << trgpt << endl << flush;
+
+      dout->mkdir("Dijet");
+      dout->cd("Dijet");
+
+      dijetHistos *h = new dijetHistos();
+
+      string &t = vtrg[itrg];
+      mhdj[t] = h;
+      h->trg = t;
+      h->trgpt = trgpt;
+
+      struct range &r = mt[t];
+      h->ptmin = r.ptmin;
+      h->ptmax = r.ptmax;
+      h->absetamin = r.absetamin;
+      h->absetamax = r.absetamax;
+
+      // Counting of events, and JEC L2L3Res for undoing
+      h->h2pteta_aball = new TH2D("h2pteta_aball",
+                                  ";#eta;p_{T,avp} (GeV);"
+                                  "N_{events}",
+                                  nx, vx, npt, vpt);
+      h->h2pteta_absel = new TH2D("h2pteta_absel",
+                                  ";#eta;p_{T,avp} (GeV);"
+                                  "N_{events}",
+                                  nx, vx, npt, vpt);
+      h->p2resab = new TProfile2D("p2resab",
+                                  ";#eta;p_{T,avp} (GeV);"
+                                  "JES(probe)/JES(tag)",
+                                  nx, vx, npt, vpt);
+
+      // MPF decomposition for HDM method
+      h->p2m0ab = new TProfile2D("p2m0ab", ";#eta;p_{T,avp} (GeV);MPF0", nx, vx,
+                                 npt, vpt);
+      h->p2m2ab = new TProfile2D("p2m2ab", ";#eta;p_{T,avp} (GeV);MPF2", nx, vx,
+                                 npt, vpt);
+      h->p2mnab = new TProfile2D("p2mnab", ";#eta;p_{T,avp} (GeV);MPFn", nx, vx,
+                                 npt, vpt);
+      h->p2muab = new TProfile2D("p2muab", ";#eta;p_{T,avp} (GeV);MPFu", nx, vx,
+                                 npt, vpt);
+
+      // Variants with different binnings and with error on the mean
+      h->h2pteta_adall = new TH2D("h2pteta_adall",
+                                  ";#eta;p_{T,ave} (GeV);"
+                                  "N_{events}",
+                                  nx, vx, npt, vpt);
+      h->h2pteta_adsel = new TH2D("h2pteta_adsel",
+                                  ";#eta;p_{T,ave} (GeV);"
+                                  "N_{events}",
+                                  nx, vx, npt, vpt);
+      h->p2resad = new TProfile2D("p2resad",
+                                  ";#eta;p_{T,ave} (GeV);"
+                                  "JES(probe)/JES(tag)",
+                                  nx, vx, npt, vpt);
+
+      // MPF decomposition for HDM method
+      h->p2m0ad = new TProfile2D("p2m0ad", ";#eta;p_{T,ave} (GeV);MPF0", nx, vx,
+                                 npt, vpt);
+      h->p2m2ad = new TProfile2D("p2m2ad", ";#eta;p_{T,ave} (GeV);MPF2", nx, vx,
+                                 npt, vpt);
+      h->p2mnad = new TProfile2D("p2mnad", ";#eta;p_{T,ave} (GeV);MPFn", nx, vx,
+                                 npt, vpt);
+      h->p2muad = new TProfile2D("p2muad", ";#eta;p_{T,ave} (GeV);MPFu", nx, vx,
+                                 npt, vpt);
+
+      h->h2pteta_tcall = new TH2D("h2pteta_tcall",
+                                  ";#eta;p_{T,ave} (GeV);"
+                                  "N_{events}",
+                                  nx, vx, npt, vpt);
+      h->h2pteta_tcsel = new TH2D("h2pteta_tcsel",
+                                  ";#eta;p_{T,ave} (GeV);"
+                                  "N_{events}",
+                                  nx, vx, npt, vpt);
+      h->p2restc = new TProfile2D("p2restc",
+                                  ";#eta;p_{T,ave} (GeV);"
+                                  "JES(probe)/JES(tag)",
+                                  nx, vx, npt, vpt);
+
+      h->p2m0tc = new TProfile2D("p2m0tc", ";#eta;p_{T,tag} (GeV);MPF0", nx, vx,
+                                 npt, vpt);
+      h->p2m2tc = new TProfile2D("p2m2tc", ";#eta;p_{T,tag} (GeV);MPF2", nx, vx,
+                                 npt, vpt);
+      h->p2mntc = new TProfile2D("p2mntc", ";#eta;p_{T,tag} (GeV);MPFn", nx, vx,
+                                 npt, vpt);
+      h->p2mutc = new TProfile2D("p2mutc", ";#eta;p_{T,tag} (GeV);MPFu", nx, vx,
+                                 npt, vpt);
+
+      h->h2pteta_pfall = new TH2D("h2pteta_pfall",
+                                  ";#eta;p_{T,ave} (GeV);"
+                                  "N_{events}",
+                                  nx, vx, npt, vpt);
+      h->h2pteta_pfsel = new TH2D("h2pteta_pfsel",
+                                  ";#eta;p_{T,ave} (GeV);"
+                                  "N_{events}",
+                                  nx, vx, npt, vpt);
+      h->p2respf = new TProfile2D("p2respf",
+                                  ";#eta;p_{T,ave} (GeV);"
+                                  "JES(probe)/JES(tag)",
+                                  nx, vx, npt, vpt);
+
+      h->p2m0pf = new TProfile2D("p2m0pf", ";#eta;p_{T,probe} (GeV);MPF0", nx,
+                                 vx, npt, vpt);
+      h->p2m2pf = new TProfile2D("p2m2pf", ";#eta;p_{T,probe} (GeV);MPF2", nx,
+                                 vx, npt, vpt);
+      h->p2mnpf = new TProfile2D("p2mnpf", ";#eta;p_{T,probe} (GeV);MPFn", nx,
+                                 vx, npt, vpt);
+      h->p2mupf = new TProfile2D("p2mupf", ";#eta;p_{T,probe} (GeV);MPFu", nx,
+                                 vx, npt, vpt);
+
+      if (doDijetJER) {
+        dout->mkdir("Dijet/JER");
+        dout->cd("Dijet/JER");
+
+        // Basic profiles with RMS as error ("S") for JER studies
+        h->p2m0 = new TProfile2D("p2m0",
+                                 ";#eta;p_{T,avp} (GeV);"
+                                 "MPF0 (MPF)",
+                                 nx, vx, npt, vpt, "S");
+        h->p2m0x = new TProfile2D("p2m0x",
+                                  ";#eta;p_{T,avp} (GeV);"
+                                  "MPFX0 (MPFX)",
+                                  nx, vx, npt, vpt, "S");
+        h->p2m2 = new TProfile2D("p2m2",
+                                 ";#eta;p_{T,avp} (GeV);"
+                                 "MPF2 (DB)",
+                                 nx, vx, npt, vpt, "S");
+        h->p2m2x = new TProfile2D("p2m2x",
+                                  ";#eta;p_{T,avp} (GeV);"
+                                  "MPF2 (DBX)",
+                                  nx, vx, npt, vpt, "S");
+      }
+
+      if (doPFComposition) {
+        dout->mkdir("Dijet/PFcomposition");
+        dout->cd("Dijet/PFcomposition");
+
+        h->p2pt = new TProfile2D("p2pt",
+                                 ";#eta;p_{T,avp} (GeV);"
+                                 "p_{T,probe}",
+                                 nx, vx, npt, vpt);
+        h->p2rho = new TProfile2D("p2rho",
+                                  ";#eta;p_{T,avp} (GeV);"
+                                  "#rho",
+                                  nx, vx, npt, vpt);
+        h->p2chf = new TProfile2D("p2chf",
+                                  ";#eta;p_{T,avp} (GeV);"
+                                  "CHF",
+                                  nx, vx, npt, vpt);
+        h->p2nhf = new TProfile2D("p2nhf",
+                                  ";#eta;p_{T,avp} (GeV);"
+                                  "NHF",
+                                  nx, vx, npt, vpt);
+        h->p2nef = new TProfile2D("p2nef",
+                                  ";#eta;p_{T,avp} (GeV);"
+                                  "NEF",
+                                  nx, vx, npt, vpt);
+        h->p2cef = new TProfile2D("p2cef",
+                                  ";#eta;p_{T,avp} (GeV);"
+                                  "CEF",
+                                  nx, vx, npt, vpt);
+        h->p2muf = new TProfile2D("p2muf",
+                                  ";#eta;p_{T,avp} (GeV);"
+                                  "MUF",
+                                  nx, vx, npt, vpt);
+
+        h->ppt13 = new TProfile("ppt13",
+                                ";#eta;p_{T,avp} (GeV);"
+                                "p_{T,tag}",
+                                npt, vpt);
+        h->prho13 = new TProfile("prho13",
+                                 ";#eta;p_{T,avp} (GeV);"
+                                 "#rho",
+                                 npt, vpt);
+        h->pchf13 = new TProfile("pchf13",
+                                 ";#eta;p_{T,avp} (GeV);"
+                                 "CHF",
+                                 npt, vpt);
+        h->pnhf13 = new TProfile("pnhf13",
+                                 ";#eta;p_{T,avp} (GeV);"
+                                 "NHF",
+                                 npt, vpt);
+        h->pnef13 = new TProfile("pnef13",
+                                 ";#eta;p_{T,avp} (GeV);"
+                                 "NEF",
+                                 npt, vpt);
+        h->pcef13 = new TProfile("pcef13",
+                                 ";#eta;p_{T,avp} (GeV);"
+                                 "CEF",
+                                 npt, vpt);
+        h->pmuf13 = new TProfile("pmuf13",
+                                 ";#eta;p_{T,avp} (GeV);"
+                                 "MUF",
+                                 npt, vpt);
+      }
+
+    }  // doDijet
+
+    if (doDijet2) {
+      if (debug) cout << "Setup doDijet2 " << trgpt << endl << flush;
+
+      dout->mkdir("Dijet2");
+      dout->cd("Dijet2");
+
+      dijetHistos2 *h = new dijetHistos2();
+
+      string &t = vtrg[itrg];
+      mhdj2[t] = h;
+      h->trg = t;
+      h->trgpt = trgpt;
+
+      struct range &r = mt[t];
+      h->ptmin = r.ptmin;
+      h->ptmax = r.ptmax;
+      h->absetamin = r.absetamin;
+      h->absetamax = r.absetamax;
+
+      // Counting of events, and JEC L2L3Res+JERSF for undoing
+      h->h2pteta = new TH2D("h2pteta",
+                            ";#eta;p_{T,avp} (GeV);"
+                            "N_{events}",
+                            nxd, vxd, nptd, vptd);
+      h->p2res = new TProfile2D("p2res",
+                                ";#eta;p_{T,avp} (GeV);"
+                                "JES(probe)/JES(tag)",
+                                nxd, vxd, nptd, vptd);
+      h->p2jsf = new TProfile2D("p2jsf",
+                                ";#eta;p_{T,avp} (GeV);"
+                                "JERSF(probe)/JERSF(tag)",
+                                nxd, vxd, nptd, vptd);
+
+      // MPF decomposition for HDM method
+      h->p2m0 = new TProfile2D("p2m0", ";#eta;p_{T,avp} (GeV);MPF0", nxd, vxd,
+                               nptd, vptd);
+      h->p2m2 = new TProfile2D("p2m2", ";#eta;p_{T,avp} (GeV);MPF2", nxd, vxd,
+                               nptd, vptd);
+      h->p2mn = new TProfile2D("p2mn", ";#eta;p_{T,avp} (GeV);MPFn", nxd, vxd,
+                               nptd, vptd);
+      h->p2mu = new TProfile2D("p2mu", ";#eta;p_{T,avp} (GeV);MPFu", nxd, vxd,
+                               nptd, vptd);
+
+      h->p2m0x = new TProfile2D("p2m0x",
+                                ";#eta;p_{T,avp} (GeV);"
+                                "MPF0X (MPFX)",
+                                nxd, vxd, nptd, vptd, "S");
+      h->p2m2x = new TProfile2D("p2m2x",
+                                ";#eta;p_{T,avp} (GeV);"
+                                "MPF2X (DBX)",
+                                nxd, vxd, nptd, vptd, "S");
+
+      // Extra for FRS studies
+      h->p2mnu = new TProfile2D("p2mnu", ";#eta;p_{T,avp} (GeV);MPFnu", nxd,
+                                vxd, nptd, vptd);
+      h->p2mnx = new TProfile2D("p2mnx",
+                                ";#eta;p_{T,avp} (GeV);"
+                                "MPFNX",
+                                nxd, vxd, nptd, vptd, "S");
+      h->p2mux = new TProfile2D("p2mux",
+                                ";#eta;p_{T,avp} (GeV);"
+                                "MPFUX",
+                                nxd, vxd, nptd, vptd, "S");
+      h->p2mnux = new TProfile2D("p2mnux",
+                                 ";#eta;p_{T,avp} (GeV);"
+                                 "MPFNUX",
+                                 nxd, vxd, nptd, vptd, "S");
+
+      h->h2ptetatc = new TH2D("h2ptetatc",
+                              ";#eta;p_{T,tag} (GeV);"
+                              "N_{events}",
+                              nxd, vxd, nptd, vptd);
+      h->p2restc = new TProfile2D("p2restc",
+                                  ";#eta;p_{T,tag} (GeV);"
+                                  "JES(probe)/JES(tag)",
+                                  nxd, vxd, nptd, vptd);
+      h->p2jsftc = new TProfile2D("p2jsftc ",
+                                  ";#eta;p_{T,tag} (GeV);"
+                                  "JERSF(probe)/JERSF(tag)",
+                                  nxd, vxd, nptd, vptd);
+      h->p2m0tc = new TProfile2D("p2m0tc", ";#eta;p_{T,tag} (GeV);MPF0", nxd,
+                                 vxd, nptd, vptd);
+      h->p2m2tc = new TProfile2D("p2m2tc", ";#eta;p_{T,tag} (GeV);MPF2", nxd,
+                                 vxd, nptd, vptd);
+      h->p2mntc = new TProfile2D("p2mntc", ";#eta;p_{T,tag} (GeV);MPFn", nxd,
+                                 vxd, nptd, vptd);
+      h->p2mutc = new TProfile2D("p2mutc", ";#eta;p_{T,tag} (GeV);MPFu", nxd,
+                                 vxd, nptd, vptd);
+
+      h->h2ptetapf = new TH2D("h2ptetapf",
+                              ";#eta;p_{T,probe} (GeV);"
+                              "N_{events}",
+                              nxd, vxd, nptd, vptd);
+      h->p2respf = new TProfile2D("p2respf",
+                                  ";#eta;p_{T,probe} (GeV);"
+                                  "JES(probe)/JES(tag)",
+                                  nxd, vxd, nptd, vptd);
+      h->p2jsfpf = new TProfile2D("p2jsfpf",
+                                  ";#eta;p_{T,probe} (GeV);"
+                                  "JERSF(probe)/JERSF(tag)",
+                                  nxd, vxd, nptd, vptd);
+      h->p2m0pf = new TProfile2D("p2m0pf", ";#eta;p_{T,probe} (GeV);MPF0", nxd,
+                                 vxd, nptd, vptd);
+      h->p2m2pf = new TProfile2D("p2m2pf", ";#eta;p_{T,probe} (GeV);MPF2", nxd,
+                                 vxd, nptd, vptd);
+      h->p2mnpf = new TProfile2D("p2mnpf", ";#eta;p_{T,probe} (GeV);MPFn", nxd,
+                                 vxd, nptd, vptd);
+      h->p2mupf = new TProfile2D("p2mupf", ";#eta;p_{T,probe} (GeV);MPFu", nxd,
+                                 vxd, nptd, vptd);
+
+      if (doDijet2NM) {
+        assert(false);
+        // separate TProfile2D for NM=1, NM=2, NM=3+ (no JetID if has NM>1)
+      }
+    }  // doDijet2
+
+    // Multijet per trigger
+    if (doMultijet) {
+      if (debug) cout << "Setup doMultijet " << trgpt << endl << flush;
+
+      dout->mkdir("Multijet");
+      dout->cd("Multijet");
+
+      multijetHistos *h = new multijetHistos();
+
+      string &t = vtrg[itrg];
+      mhmj[t] = h;
+      h->trg = t;
+      h->trgpt = trgpt;
+
+      struct range &r = mt[t];
+      h->ptmin = r.ptmin;
+      h->ptmax = r.ptmax;
+      h->absetamin = r.absetamin;
+      h->absetamax = r.absetamax;
+
+      h->hpta_all = new TH1D("hpta_all", "", npti, vpti);
+      h->hpta_sel = new TH1D("hpta_sel", "", npti, vpti);
+      h->presa = new TProfile("presa", "", npti, vpti);
+      h->ptleada = new TProfile("ptleada", "", npti, vpti);
+      h->pcrecoila = new TProfile("pcrecoila", "", npti, vpti);
+
+      h->pm0a = new TProfile("pm0a", "", npti, vpti);
+      h->pm2a = new TProfile("pm2a", "", npti, vpti);
+      h->pmna = new TProfile("pmna", "", npti, vpti);
+      h->pmua = new TProfile("pmua", "", npti, vpti);
+
+      h->hptm_all = new TH1D("hptm_all", "", npti, vpti);
+      h->hptm_sel = new TH1D("hptm_sel", "", npti, vpti);
+      h->presm = new TProfile("presm", "", npti, vpti);
+      h->ptleadm = new TProfile("ptleadm", "", npti, vpti);
+      h->pcrecoilm = new TProfile("pcrecoilm", "", npti, vpti);
+
+      h->pm0m = new TProfile("pm0m", "", npti, vpti);
+      h->pm2m = new TProfile("pm2m", "", npti, vpti);
+      h->pmnm = new TProfile("pmnm", "", npti, vpti);
+      h->pmum = new TProfile("pmum", "", npti, vpti);
+
+      h->hptl_all = new TH1D("hptl_all", "", npti, vpti);
+      h->hptl_sel = new TH1D("hptl_sel", "", npti, vpti);
+      h->presl = new TProfile("presl", "", npti, vpti);
+      h->ptleadl = new TProfile("ptleadl", "", npti, vpti);
+      h->pcrecoill = new TProfile("pcrecoill", "", npti, vpti);
+
+      h->pm0l = new TProfile("pm0l", "", npti, vpti);
+      h->pm2l = new TProfile("pm2l", "", npti, vpti);
+      h->pmnl = new TProfile("pmnl", "", npti, vpti);
+      h->pmul = new TProfile("pmul", "", npti, vpti);
+
+      h->hptr_all = new TH1D("hptr_all", "", npti, vpti);
+      h->hptr_sel = new TH1D("hptr_sel", "", npti, vpti);
+      h->presr = new TProfile("presr", "", npti, vpti);
+      h->ptleadr = new TProfile("ptleadr", "", npti, vpti);
+      h->pcrecoilr = new TProfile("pcrecoilr", "", npti, vpti);
+
+      h->pm0r = new TProfile("pm0r", "", npti, vpti);
+      h->pm2r = new TProfile("pm2r", "", npti, vpti);
+      h->pmnr = new TProfile("pmnr", "", npti, vpti);
+      h->pmur = new TProfile("pmur", "", npti, vpti);
+
+      if (doMultijetControl) {
+        h->h2m0a = new TH2D("h2m0a", "", npti, vpti, 200, -1, 3);
+        h->h2m2a = new TH2D("h2m2a", "", npti, vpti, 200, -1, 3);
+        h->hcosdphi = new TH1D("hcosdphi", "", 102, -1.01, 1.01);
+      }
+      if (doMultijet2Drecoil) {
+        dout->mkdir("Multijet/2Drecoil");
+        dout->cd("Multijet/2Drecoil");
+        h->h2recoila = new TH2D("h2recoila", "", npti, vpti, npti, vpti);
+        h->h2recoilm = new TH2D("h2recoilm", "", npti, vpti, npti, vpti);
+        h->h2recoill = new TH2D("h2recoill", "", npti, vpti, npti, vpti);
+        h->h2recoilr = new TH2D("h2recoilr", "", npti, vpti, npti, vpti);
+      }
+      if (doPFComposition) {
+        dout->mkdir("Multijet/PFcomposition");
+        dout->cd("Multijet/PFcomposition");
+
+        h->ppt13 = new TProfile("ppt13",
+                                ";#eta;p_{T,avp} (GeV);"
+                                "p_{T,lead}",
+                                npti, vpti);
+        h->prho13 = new TProfile("prho13",
+                                 ";#eta;p_{T,avp} (GeV);"
+                                 "#rho",
+                                 npti, vpti);
+        h->pchf13 = new TProfile("pchf13",
+                                 ";#eta;p_{T,avp} (GeV);"
+                                 "CHF",
+                                 npti, vpti);
+        h->pnhf13 = new TProfile("pnhf13",
+                                 ";#eta;p_{T,avp} (GeV);"
+                                 "NHF",
+                                 npti, vpti);
+        h->pnef13 = new TProfile("pnef13",
+                                 ";#eta;p_{T,avp} (GeV);"
+                                 "NEF",
+                                 npti, vpti);
+        h->pcef13 = new TProfile("pcef13",
+                                 ";#eta;p_{T,avp} (GeV);"
+                                 "CEF",
+                                 npti, vpti);
+        h->pmuf13 = new TProfile("pmuf13",
+                                 ";#eta;p_{T,avp} (GeV);"
+                                 "MUF",
+                                 npti, vpti);
+
+        h->ppt25 = new TProfile("ppt25",
+                                ";#eta;p_{T,avp} (GeV);"
+                                "p_{T,recoil}",
+                                npti, vpti);
+        h->prho25 = new TProfile("prho25",
+                                 ";#eta;p_{T,avp} (GeV);"
+                                 "#rho",
+                                 npti, vpti);
+        h->pchf25 = new TProfile("pchf25",
+                                 ";#eta;p_{T,avp} (GeV);"
+                                 "CHF",
+                                 npti, vpti);
+        h->pnhf25 = new TProfile("pnhf25",
+                                 ";#eta;p_{T,avp} (GeV);"
+                                 "NHF",
+                                 npti, vpti);
+        h->pnef25 = new TProfile("pnef25",
+                                 ";#eta;p_{T,avp} (GeV);"
+                                 "NEF",
+                                 npti, vpti);
+        h->pcef25 = new TProfile("pcef25",
+                                 ";#eta;p_{T,avp} (GeV);"
+                                 "CEF",
+                                 npti, vpti);
+        h->pmuf25 = new TProfile("pmuf25",
+                                 ";#eta;p_{T,avp} (GeV);"
+                                 "MUF",
+                                 npti, vpti);
+      }
+
+    }  // doMultijet
+
+  }  // for itrg
+
+  if (debugevent) cout << "Load jet veto maps" << endl << flush;
+
+  // Load veto maps
+  // JECDatabase/jet_veto_maps/Summer19UL16_V0/hotjets-UL16.root
+  // JECDatabase/jet_veto_maps/Summer19UL17_V2/hotjets-UL17_v2.root
+  // JECDatabase/jet_veto_maps/Summer19UL18_V1/hotjets-UL18.root
+  TFile *fjv(0);
+  if (isRun2 == 1 || isRun2 == 2)  // TString(ds.c_str()).Contains("2016"))
+    fjv = new TFile("rootfiles/hotjets-UL16.root", "READ");
+  if (isRun2 == 3)  // TString(ds.c_str()).Contains("2017"))
+    fjv = new TFile("rootfiles/hotjets-UL17_v2.root", "READ");
+  if (isRun2 == 4)  // TString(ds.c_str()).Contains("2018"))
+    fjv = new TFile("rootfiles/hotjets-UL18.root", "READ");
+  assert(fjv);
+
+  // Veto lists for different years (NB: extra MC map for UL16):
+  // h2hot_ul16_plus_hbm2_hbp12_qie11 + h2hot_mc (for UL16)
+  // h2hot_ul17_plus_hep17_plus_hbpw89 (UL17)
+  // h2hot_ul18_plus_hem1516_and_hbp2m1 (UL18)
+  TH2D *h2jv(0);
+  if (isRun2 == 1 || isRun2 == 2) {  // TString(ds.c_str()).Contains("2016")) {
+    h2jv = (TH2D *)fjv->Get("h2hot_ul16_plus_hbm2_hbp12_qie11");
+    assert(h2jv);
+    TH2D *h2mc = (TH2D *)fjv->Get("h2hot_mc");
+    assert(h2mc);
+    h2jv->Add(h2mc);
+  }
+  if (isRun2 == 3)  // TString(ds.c_str()).Contains("2017"))
+    h2jv = (TH2D *)fjv->Get("h2hot_ul17_plus_hep17_plus_hbpw89");
+  if (isRun2 == 4)  // TString(ds.c_str()).Contains("2018"))
+    h2jv = (TH2D *)fjv->Get("h2hot_ul18_plus_hem1516_and_hbp2m1");
+  assert(h2jv);
+
+  // Long64_t nentries = fChain->GetEntriesFast();
+  Long64_t nentries = fChain->GetEntries();  // Long startup time
+  cout << "Loaded " << nentries << " entries" << endl << flush;
+
+  if (isMG && nentries != nMG) {
+    cout << "Nentries = " << nentries << ", expected nMG = " << nMG << endl
+         << flush;
+    // assert(false);
+    cout << "Recalculate HT bin counts prior to starting."
+         << " This will take a few minutes" << endl;
+    hnevt->Reset();
+    for (Long64_t jentry = 0; jentry < nentries; jentry++) {
       Long64_t ientry = LoadTree(jentry);
       if (ientry < 0) break;
+      b_LHE_HT->GetEntry(ientry);  // read only this branch
+      hnevt->Fill(LHE_HT);
+      if (jentry % 1000000 == 0) cout << "." << flush;
+      if (jentry % 50000000 == 0 && jentry != 0)
+        cout << "\nn=" << jentry << endl << flush;
+    }  // for jentry
+    nMG = nentries;
+    cout << "\nProcessed " << nMG << " entries" << endl << flush;
+    cout << Form("int vnevt[%d] = ", hnevt->GetNbinsX());
+    for (int i = 1; i != hnevt->GetNbinsX() + 1; ++i) {
+      cout << Form("%s%d", (i == 1 ? "{" : ", "),
+                   int(hnevt->GetBinContent(i) + 0.5));
+    }
+    cout << "}; // " << dataset << endl << flush;
+  }  // isMC && nentries!=nMG
 
-      if (jentry%100000==0) cout << "." << flush;
-      if (jentry%5000000==0) cout << "n="<<jentry<<endl<<flush;
+  // For trigger matching studies
+  // const int kMaxTrigJet = 3;
+  // Float_t Jet_hltPt[kMaxTrigJet];
+  // Float_t Jet_hltPtClose[kMaxTrigJet];
+  // Float_t Jet_hltPtNear[kMaxTrigJet];
+  // Float_t Jet_hltPtMax[kMaxTrigJet];
+  Float_t Jet_RES[nJetMax];
+  Float_t Jet_deltaJES[nJetMax];
+  Float_t Jet_CF[nJetMax];
+  Float_t Jet_genDR[nJetMax];
+  // Float_t Jet_smearFactor[nJetMax];
 
-      if (jentry==100000 || jentry==1000000 || jentry==1000000 ||
-	  (jentry%1000000==0 && jentry<10000000) ||
-	  (jentry%10000000==0) || jentry==nentries-1) {
-	if (jentry==0) { laptime.Start(); }
-	if (nentries!=0) {
-	  cout << Form("\nProcessed %lld events (%1.1f%%) in %1.0f sec. "
-		       "(%1.0f sec. for last %d)",
-		       jentry, 100.*jentry/nentries, fulltime.RealTime(),
-		       laptime.RealTime(), nlap);
-	}
-	if (jentry!=0 && nlap!=0) {
-	  cout << Form("\nEstimated runtime:  %1.0f sec. "
-		       " (%1.0f sec. for last %d)\n",
-		       1.*nentries/jentry*fulltime.RealTime(),
-		       1.*nentries/nlap*laptime.RealTime(),nlap) << flush;
-	  laptime.Reset();
-	  nlap = 0;
-	}
-	if (jentry==0) fulltime.Reset(); // Leave out initialization time
-	fulltime.Continue();
-	laptime.Continue();
+  // Main event loop (over nentries)
+  Long64_t nbytes = 0, nb = 0;
+  for (Long64_t jentry = 0; jentry < nentries; jentry++) {
+    Long64_t ientry = LoadTree(jentry);
+    if (ientry < 0) break;
+
+    if (jentry % 100000 == 0) cout << "." << flush;
+    if (jentry % 5000000 == 0) cout << "n=" << jentry << endl << flush;
+
+    if (jentry == 100000 || jentry == 1000000 || jentry == 1000000 ||
+        (jentry % 1000000 == 0 && jentry < 10000000) ||
+        (jentry % 10000000 == 0) || jentry == nentries - 1) {
+      if (jentry == 0) {
+        laptime.Start();
       }
-      if (jentry%10000==0) cout << "." << flush;
-      ++nlap;
-   
-      if (debugevent) cout << "Read run+LS branches for JSON " << endl << flush;
-
-      // Clean code from bad lumisections using JSON file
-      if (doJSON) {
-
-	if (debugevent) cout << "doJSON: Read in branches" << endl << flush;
-
-	b_run->GetEntry(ientry); 
-	b_luminosityBlock->GetEntry(ientry);
-	
-	// Does the run/LS pass the latest JSON selection?
-	if (_json[run][luminosityBlock]==0) {
-	  ++_nbadevts_json;
-	  continue;
-	}
-      } // doJSON
-
-      if (debugevent) cout << "Read in entry" << endl << flush;
-
-      // Read rest of the event before trigger decision
-      nb = fChain->GetEntry(jentry);   nbytes += nb;
-      // if (Cut(ientry) < 0) continue;
-
-      double w = (isMC ? genWeight : 1.);
-      if (isMG) {
-	int iht = hxsec->FindBin(LHE_HT);
-	double xsec = hxsec->GetBinContent(iht);
-	double nevt = hnevt->GetBinContent(iht);
-	double wht = (nevt ? xsec / nevt : 1);
-	w *= wht;
-	hLHE_HT->Fill(LHE_HT); // cross-check hnevt afterwards
-	hHT->Fill(LHE_HT, w); // cross-check HT spectrum smoothness afterwards
+      if (nentries != 0) {
+        cout << Form(
+            "\nProcessed %lld events (%1.1f%%) in %1.0f sec. "
+            "(%1.0f sec. for last %d)",
+            jentry, 100. * jentry / nentries, fulltime.RealTime(),
+            laptime.RealTime(), nlap);
       }
-      double rho = Rho_fixedGridRhoFastjetAll;
-      
-      bool doPtHatFilter = true;
-      if (doPtHatFilter && isMC) {
-	if ( isMG && 2.*Pileup_pthatmax>LHE_HT) continue;
-	if (!isMG && Pileup_pthatmax>Generator_binvar) continue;
+      if (jentry != 0 && nlap != 0) {
+        cout << Form(
+                    "\nEstimated runtime:  %1.0f sec. "
+                    " (%1.0f sec. for last %d)\n",
+                    1. * nentries / jentry * fulltime.RealTime(),
+                    1. * nentries / nlap * laptime.RealTime(), nlap)
+             << flush;
+        laptime.Reset();
+        nlap = 0;
       }
+      if (jentry == 0) fulltime.Reset();  // Leave out initialization time
+      fulltime.Continue();
+      laptime.Continue();
+    }
+    if (jentry % 10000 == 0) cout << "." << flush;
+    ++nlap;
 
-      if (debugevent) cout << "Keep track of run+LS" << endl << flush;
-      
-      if (mrunls.find(run)==mrunls.end()) ++nrun;
-      if (mrunls[run].find(luminosityBlock)==mrunls[run].end()) ++nls;
-      ++nevt;
-      mrunls[run][luminosityBlock] = 1;
+    if (debugevent) cout << "Read run+LS branches for JSON " << endl << flush;
 
-      // Check if any triggers fired and make histogram of them
-      if (doTrigger) {
+    // Clean code from bad lumisections using JSON file
+    if (doJSON) {
+      if (debugevent) cout << "doJSON: Read in branches" << endl << flush;
 
-	if (debugevent) cout << "Check trigger" << endl << flush;
+      b_run->GetEntry(ientry);
+      b_luminosityBlock->GetEntry(ientry);
 
-	bool fired = false;
-	for (int i = 0; i != ntrg; ++i) {
-	  fired = (fired || (*mtrg[vtrg[i]]));
-	  if (*mtrg[vtrg[i]]) htrg->Fill(i);
-	}
-	if (!fired) {
-	  ++_nbadevts_trg;
-	  continue;
-	}
-      } // doTrigger
-      ++_ngoodevts;
+      // Does the run/LS pass the latest JSON selection?
+      if (_json[run][luminosityBlock] == 0) {
+        ++_nbadevts_json;
+        continue;
+      }
+    }  // doJSON
 
-      if (debugevent) cout << "Redo JEC" << endl << flush;
+    if (debugevent) cout << "Read in entry" << endl << flush;
 
-      // Redo JEC right after event cuts but before anything else
-      // Do not re-sort (for now)
-      bool allJetsGood(true);
-      int njet = nJet;
-      for (int i  = 0; i != njet; ++i) {
-	
-	double rawJetPt = Jet_pt[i] * (1.0 - Jet_rawFactor[i]);
-	double rawJetMass = Jet_mass[i] * (1.0 - Jet_rawFactor[i]);
-	jec->setJetPt(rawJetPt);
-	jec->setJetEta(Jet_eta[i]);
-	if (isRun2) {
-	  jec->setJetA(Jet_area[i]);
-	  jec->setRho(Rho_fixedGridRhoFastjetAll);
-	  jecl1rc->setJetPt(rawJetPt);
-	  jecl1rc->setJetEta(Jet_eta[i]);
-	  jecl1rc->setJetA(Jet_area[i]);
-	  jecl1rc->setRho(Rho_fixedGridRhoFastjetAll);
-	}
-	//double corr = jec->getCorrection();
-	vector<float> v = jec->getSubCorrections();
-	double corr = v.back();
-	double res = (v.size()>1 ? v[v.size()-1]/v[v.size()-2] : 1.);
-	Jet_RES[i] = 1./res;
-	Jet_deltaJES[i] = (1./corr) / (1.0 - Jet_rawFactor[i]);
-	Jet_pt[i] = corr * rawJetPt;
-	Jet_mass[i] = corr * rawJetMass;
-	Jet_rawFactor[i] = (1.0 - 1.0/corr);
-	// pt*(1-l1rcFactor)=ptl1rc => l1rcFactor = 1 - ptl1rc/pt
-	Jet_l1rcFactor[i] = (isRun2 ? (1.0-jecl1rc->getCorrection()/corr) : 1);
+    // Read rest of the event before trigger decision
+    nb = fChain->GetEntry(jentry);
+    nbytes += nb;
+    // if (Cut(ientry) < 0) continue;
 
-	if (true) { // check jet veto
-	  int i1 = h2jv->GetXaxis()->FindBin(Jet_eta[i]);
-	  int j1 = h2jv->GetYaxis()->FindBin(Jet_phi[i]);
-	  Jet_jetveto[i] = (h2jv->GetBinContent(i1,j1)>0);
-	} // jet veto
-	else
-	  Jet_jetveto[i] = false;
+    double w = (isMC ? genWeight : 1.);
+    if (isMG) {
+      int iht = hxsec->FindBin(LHE_HT);
+      double xsec = hxsec->GetBinContent(iht);
+      double nevt = hnevt->GetBinContent(iht);
+      double wht = (nevt ? xsec / nevt : 1);
+      w *= wht;
+      hLHE_HT->Fill(LHE_HT);  // cross-check hnevt afterwards
+      hHT->Fill(LHE_HT, w);   // cross-check HT spectrum smoothness afterwards
+    }
+    double rho = Rho_fixedGridRhoFastjetAll;
 
-	// Fail allJetsGood flag if any jet of pT>15 is not good
-	if (!(Jet_jetId[i]>=4 && !Jet_jetveto[i]) && Jet_pt[i]>15.)
-	  allJetsGood = false;
-	// NB: should move this after smearing. Separate loop for type-I MET?
-      } // for njet
+    bool doPtHatFilter = true;
+    if (doPtHatFilter && isMC) {
+      if (isMG && 2. * Pileup_pthatmax > LHE_HT) continue;
+      if (!isMG && Pileup_pthatmax > Generator_binvar) continue;
+    }
 
-      // Apply JER smearing to MC immediately after JEC. Don't change order.
-      // Need after JEC to ensure mean is at 1, but ideally should recalculate
-      // JEC with smeared reco pT for consistency
-      //Jet_smearFactor[i] = 0.;
-      // Safety reset that works for data as well
-      for (int i = 0; i != njet; ++i) { Jet_CF[i] = 1.; }
+    if (debugevent) cout << "Keep track of run+LS" << endl << flush;
 
-      if (isMC && smearJets) { 
-	
-	for (int i  = 0; i != njet; ++i) {
+    if (mrunls.find(run) == mrunls.end()) ++nrun;
+    if (mrunls[run].find(luminosityBlock) == mrunls[run].end()) ++nls;
+    ++nevt;
+    mrunls[run][luminosityBlock] = 1;
 
-	  Jet_CF[i] = 1.;
-	  if (i<smearNMax) {
+    // Check if any triggers fired and make histogram of them
+    if (doTrigger) {
+      if (debugevent) cout << "Check trigger" << endl << flush;
 
-	    // Retrieve genJet and calculate dR
-	    double dR(999);
-	    p4.SetPtEtaPhiM(Jet_pt[i],Jet_eta[i],Jet_phi[i],Jet_mass[i]);
-	    if (Jet_genJetIdx[i]>=0) {
-	      int j = Jet_genJetIdx[i];
-	      p4g.SetPtEtaPhiM(GenJet_pt[j],GenJet_eta[j],GenJet_phi[j],
-			       GenJet_mass[j]);
-	      dR = p4g.DeltaR(p4);
-	    }
-	    else
-	      p4g.SetPtEtaPhiM(0,0,0,0);
-	    
-	    // Rename variables to keep naming as in jetphys/IOV.h.
-	    double jPt = Jet_pt[i];
-	    double jEta = Jet_eta[i];
-	    double rho = Rho_fixedGridRhoFastjetAll;
-	    double jE = p4.E();
-	    double jPtGen = p4g.Pt();
-	    // Set constants
-	    double MIN_JET_ENERGY = 0.01; // TBD
-	    
-	    // Some problems with the code below:
-	    // 1) JER should us primarily genPt, secondary recoPt
-	    // 2) relDpt  should evaluate vs genPt to avoid <1/x> != 1/<x> bias
-	    // 3) For (JME)NANO, should also check DR of genJet
-	    // Probably small impact except for the last, which I add
-	    
-	    // The method presented here can be found in https://twiki.cern.ch/twiki/bin/viewauth/CMS/JetResolution
-	    // and the corresponding code in https://github.com/cms-sw/cmssw/blob/CMSSW_8_0_25/PhysicsTools/PatUtils/interface/SmearedJetProducerT.h
-	    double Reso = jer->getResolution({{JME::Binning::JetPt, jPt}, {JME::Binning::JetEta, jEta}, {JME::Binning::Rho, rho}});
-	    double SF(1);
-	    if (useJERSFvsPt && jersfvspt) {
-	      jersfvspt->setJetEta(jEta);
-	      jersfvspt->setJetPt(jPt);
-	      jersfvspt->setRho(rho);
-	      SF = jersfvspt->getCorrection();
-	    }
-	    else if (!useJERSFvsPt && jersf) {
-	      SF = jersf->getScaleFactor({{JME::Binning::JetEta, jEta}, {JME::Binning::Rho, rho}}, Variation::NOMINAL);
-	    }
-	    
-	    // Case 0: by default the JER correction factor is equal to 1
-	    double CF = 1.;
-	    // We see if the gen jet meets our requirements
-	    bool condPt = (jPtGen>MIN_JET_ENERGY && dR<0.2);
-	    double relDPt = condPt ? (jPt - jPtGen)/jPt : 0.0;
-	    bool condPtReso = fabs(relDPt) < 3*Reso;
-	    if (condPt and condPtReso) {
-	      // Case 1: we have a "good" gen jet matched to the reco jet (indicated by positive gen jet pt)
-	      CF += (SF - 1.)*relDPt;
-	    } else if (SF > 1) {
-	      // Case 2: we don't have a gen jet. Smear jet pt using a random gaussian variation
-	      double sigma = Reso*std::sqrt(SF*SF - 1);
-	      std::normal_distribution<> d(0, sigma);
-	      CF += d(_mersennetwister);
-	    }
-	  
-	    // Negative or too small smearFactor. Safety precautions.
-	    double CFLimit = MIN_JET_ENERGY / jE;
-	    if (CF < CFLimit) CF = CFLimit;
-	    
-	    double origPt = Jet_pt[i];
-	    double origJetMass = Jet_mass[i];
-	    Jet_pt[i] = CF * origPt;
-	    Jet_mass[i] = CF * origJetMass;
-	    Jet_CF[i] = CF;
-	    //Jet_smearFactor[i] = (1.0 - 1.0/CF);	
-	    
-	    // type-I calculation is done later and propagates JER SF
-	    // (needs to have unsmeard p4lr1c, fully smeared p4)
-	  } // i<smearNMax
-	} // for njet
-      } // JER smearing
+      bool fired = false;
+      for (int i = 0; i != ntrg; ++i) {
+        fired = (fired || (*mtrg[vtrg[i]]));
+        if (*mtrg[vtrg[i]]) htrg->Fill(i);
+      }
+      if (!fired) {
+        ++_nbadevts_trg;
+        continue;
+      }
+    }  // doTrigger
+    ++_ngoodevts;
 
-      // Calculate MC truth right after JEC and smearing to test closure
-      if (isMC && doMCtruth) {
+    if (debugevent) cout << "Redo JEC" << endl << flush;
 
-	mctruthHistos *h = mhmc["HLT_MC"];
-
-	// First, map reco->gen so can quickly invert gen->reco
-	// Also reset dR
-	map<int, int> genToReco;
-	for (int i = 0; i != njet; ++i) {
-	  if (Jet_genJetIdx[i]>=0) {
-	    genToReco[Jet_genJetIdx[i]] = i;
-	  }
-	  Jet_genDR[i] = 999.;
-	  h->h2pteta_rec->Fill(fabs(Jet_eta[i]), Jet_pt[i], w);
-	} // for i
-
-	// Then loop over genjets and also update dr
-	for (UInt_t j = 0; j != nGenJet; ++j) {
-
-	  p4g.SetPtEtaPhiM(GenJet_pt[j],GenJet_eta[j],GenJet_phi[j],
-			   GenJet_mass[j]);
-	  double dR(999);
-	  int i(-1);
-	  if (genToReco.find(j)!=genToReco.end()) {
-	    i = genToReco[j];
-	    p4.SetPtEtaPhiM(Jet_pt[i],Jet_eta[i],Jet_phi[i],Jet_mass[i]);
-	    dR = p4g.DeltaR(p4);
-	    Jet_genDR[i] = dR;
-	  }
-	  else
-	    p4.SetPtEtaPhiM(0,0,0,0);
-
-	  h->h2pteta_gen->Fill(fabs(p4g.Eta()), p4g.Pt(), w);
-	  bool hasMatchVtx = (fabs(PV_z-GenVtx_z)<0.2);
-	  bool hasMatchJet = (dR<0.2 && p4g.Pt()>0 && p4.Pt()>0);
-	  if (hasMatchVtx && hasMatchJet) {
-	    h->h2pteta->Fill(fabs(p4.Eta()), p4g.Pt(), w);
-	    h->p2jes->Fill(fabs(p4.Eta()), p4g.Pt(), (1.-Jet_rawFactor[i]), w);
-	    h->p2jsf->Fill(fabs(p4.Eta()), p4g.Pt(), 
-			   smearJets ? Jet_CF[i] : 1, w);
-	    h->p2r->Fill(fabs(p4.Eta()), p4g.Pt(), p4.Pt() / p4g.Pt(), w);
-	  }
-	  h->p2effz->Fill(fabs(p4g.Eta()), p4g.Pt(), hasMatchVtx ? 1 : 0, w);
-	  if (hasMatchVtx)
-	    h->p2eff->Fill(fabs(p4g.Eta()), p4g.Pt(), hasMatchJet ? 1 : 0, w);
-	} // for j
-
-	// Finally check fake rates
-	for (int i = 0; i != njet; ++i) {
-	  bool hasMatchVtx = (fabs(PV_z-GenVtx_z)<0.2);
-	  bool hasMatchJet = (Jet_genDR[i]<0.2);
-	  if (hasMatchVtx)
-	    h->p2pur->Fill(fabs(Jet_eta[i]), Jet_pt[i], hasMatchJet ? 1 : 0);
-	} // for i
-
-      } // isMC && doMCtruth
-
-      /*
-      // Match leading jets to HLT objects
-      for (int i  = 0; i != min(njet,kMaxTrigJet); ++i) {
-	Jet_hltPt[i] = 0;
-	Jet_hltPtMax[i] = 0;
-	Jet_hltPtNear[i] = 0;
-	Jet_hltPtClose[i] = 0;
-	double dptmin(9999);
-	double drmin(999);
-	//double drmin2(999);
-	for (unsigned int j  = 0; j != nTrigObjJMEAK4; ++j) {
-	  //if (TrigObjJMEAK4_id[j]==1) {
-	  if (true) {
-	    double dphi = DELTAPHI(Jet_phi[i], TrigObjJMEAK4_phi[j]);
-	    double deta = fabs(Jet_eta[i] - TrigObjJMEAK4_eta[j]);
-	    double dr  = sqrt(dphi*dphi + deta*deta);
-	    // Closest in Pt HLT object within jet radius
-	    if (dr < 0.4 && fabs(Jet_pt[i] - TrigObjJMEAK4_pt[j]) < dptmin) {
-	      Jet_hltPtClose[i] = TrigObjJMEAK4_pt[j];
-	      dptmin = fabs(Jet_pt[i] - TrigObjJMEAK4_pt[j]);
-	    }
-	    // Hardest HLT object within jet radius
-	    if (dr < 0.4 && Jet_hltPtMax[i] < TrigObjJMEAK4_pt[j]) {
-	      Jet_hltPtMax[i] = TrigObjJMEAK4_pt[j];
-	    }
-	    // Nearest HLT object within jet radius
-	    if (dr < 0.4 && dr < drmin) {
-	      Jet_hltPtNear[i] = TrigObjJMEAK4_pt[j];
-	      drmin = dr;
-	    }
-	  } // TrigObjJMEAK4==Jet
-	} // for nTrigObjJMEAK4
-	// Require best match within dR<R/2 and also closest in pT at dR<R
-	if (drmin<0.2 && Jet_hltPtClose[i]==Jet_hltPtNear[i]) {
-	  Jet_hltPt[i] = Jet_hltPtClose[i];
-	}
-      } // for njet
-      */
-
-      if (debugevent) cout << "Sum four-vectors for MHT" << endl << flush;
-      
-      //int njet3 = 0;
-      //int njetn = 0;
-
-      // Reset MET vectors
+    // Redo JEC right after event cuts but before anything else
+    // Do not re-sort (for now)
+    bool allJetsGood(true);
+    int njet = nJet;
+    for (int i = 0; i != njet; ++i) {
+      double rawJetPt = Jet_pt[i] * (1.0 - Jet_rawFactor[i]);
+      double rawJetMass = Jet_mass[i] * (1.0 - Jet_rawFactor[i]);
+      jec->setJetPt(rawJetPt);
+      jec->setJetEta(Jet_eta[i]);
       if (isRun2) {
-	p4rawmet.SetPtEtaPhiM(ChsMET_pt,0,ChsMET_phi,0);
-	p4t1met.SetPtEtaPhiM(ChsMET_pt,0,ChsMET_phi,0);
-	p4m0.SetPtEtaPhiM(ChsMET_pt,0,ChsMET_phi,0);
+        jec->setJetA(Jet_area[i]);
+        jec->setRho(Rho_fixedGridRhoFastjetAll);
+        jecl1rc->setJetPt(rawJetPt);
+        jecl1rc->setJetEta(Jet_eta[i]);
+        jecl1rc->setJetA(Jet_area[i]);
+        jecl1rc->setRho(Rho_fixedGridRhoFastjetAll);
       }
-      else {
-	p4rawmet.SetPtEtaPhiM(PuppiMET_pt,0,PuppiMET_phi,0);
-      	p4t1met.SetPtEtaPhiM(PuppiMET_pt,0,PuppiMET_phi,0);
-      	p4m0.SetPtEtaPhiM(PuppiMET_pt,0,PuppiMET_phi,0);
-      }
-      p4mht.SetPtEtaPhiM(0,0,0,0);
+      // double corr = jec->getCorrection();
+      vector<float> v = jec->getSubCorrections();
+      double corr = v.back();
+      double res = (v.size() > 1 ? v[v.size() - 1] / v[v.size() - 2] : 1.);
+      Jet_RES[i] = 1. / res;
+      Jet_deltaJES[i] = (1. / corr) / (1.0 - Jet_rawFactor[i]);
+      Jet_pt[i] = corr * rawJetPt;
+      Jet_mass[i] = corr * rawJetMass;
+      Jet_rawFactor[i] = (1.0 - 1.0 / corr);
+      // pt*(1-l1rcFactor)=ptl1rc => l1rcFactor = 1 - ptl1rc/pt
+      Jet_l1rcFactor[i] =
+          (isRun2 ? (1.0 - jecl1rc->getCorrection() / corr) : 1);
 
-      // Reset dijet vectors
-      p4m2.SetPtEtaPhiM(0,0,0,0);
-      p4mn.SetPtEtaPhiM(0,0,0,0);
-      p4mu.SetPtEtaPhiM(0,0,0,0);
+      if (true) {  // check jet veto
+        int i1 = h2jv->GetXaxis()->FindBin(Jet_eta[i]);
+        int j1 = h2jv->GetYaxis()->FindBin(Jet_phi[i]);
+        Jet_jetveto[i] = (h2jv->GetBinContent(i1, j1) > 0);
+      }  // jet veto
+      else
+        Jet_jetveto[i] = false;
 
-      // Reset multijet vectors
-      //bool ismultijet = (njet>=3); // multijet pre-setting
-      p4lead.SetPtEtaPhiM(0,0,0,0);
-      p4recoil.SetPtEtaPhiM(0,0,0,0);
-      p4m3.SetPtEtaPhiM(0,0,0,0);
-      p4mn3.SetPtEtaPhiM(0,0,0,0);
-      p4mu3.SetPtEtaPhiM(0,0,0,0);
-      p4leadRES.SetPtEtaPhiM(0,0,0,0);
-      p4recoilRES.SetPtEtaPhiM(0,0,0,0);
-      int nlead(0);
-      int nrecoil(0);
-      bool multijet_vetonear(false);
-      bool multijet_vetofwd(false);
+      // Fail allJetsGood flag if any jet of pT>15 is not good
+      if (!(Jet_jetId[i] >= 4 && !Jet_jetveto[i]) && Jet_pt[i] > 15.)
+        allJetsGood = false;
+      // NB: should move this after smearing. Separate loop for type-I MET?
+    }  // for njet
 
+    // Apply JER smearing to MC immediately after JEC. Don't change order.
+    // Need after JEC to ensure mean is at 1, but ideally should recalculate
+    // JEC with smeared reco pT for consistency
+    // Jet_smearFactor[i] = 0.;
+    // Safety reset that works for data as well
+    for (int i = 0; i != njet; ++i) {
+      Jet_CF[i] = 1.;
+    }
+
+    if (isMC && smearJets) {
       for (int i = 0; i != njet; ++i) {
+        Jet_CF[i] = 1.;
+        if (i < smearNMax) {
+          // Retrieve genJet and calculate dR
+          double dR(999);
+          p4.SetPtEtaPhiM(Jet_pt[i], Jet_eta[i], Jet_phi[i], Jet_mass[i]);
+          if (Jet_genJetIdx[i] >= 0) {
+            int j = Jet_genJetIdx[i];
+            p4g.SetPtEtaPhiM(GenJet_pt[j], GenJet_eta[j], GenJet_phi[j],
+                             GenJet_mass[j]);
+            dR = p4g.DeltaR(p4);
+          } else
+            p4g.SetPtEtaPhiM(0, 0, 0, 0);
 
-	// p4 is fully corrected and smeared
-	p4.SetPtEtaPhiM(Jet_pt[i], Jet_eta[i], Jet_phi[i], Jet_mass[i]);
-	//p4raw.SetPtEtaPhiM(Jet_pt[i]*(1.0-Jet_rawFactor[i]), Jet_eta[i],
-	//		   Jet_phi[i], Jet_mass[i]*(1.0-Jet_rawFactor[i]));
-	//p4l1rc.SetPtEtaPhiM(Jet_pt[i]*(1.0-Jet_l1rcFactor[i]), Jet_eta[i],
-	//		    Jet_phi[i], Jet_mass[i]*(1.0-Jet_l1rcFactor[i]));
-	// p4l1rc is before corrections and smearing
-	p4l1rc.SetPtEtaPhiM(Jet_pt[i]
-			    / (smearJets && Jet_CF[i] ? Jet_CF[i] : 1)
-			    * (1.0-Jet_l1rcFactor[i]),
-			    Jet_eta[i], Jet_phi[i],
-			    Jet_mass[i]
-			    / (smearJets && Jet_CF[i] ? Jet_CF[i] : 1)
-			    * (1.0-Jet_l1rcFactor[i]));
+          // Rename variables to keep naming as in jetphys/IOV.h.
+          double jPt = Jet_pt[i];
+          double jEta = Jet_eta[i];
+          double rho = Rho_fixedGridRhoFastjetAll;
+          double jE = p4.E();
+          double jPtGen = p4g.Pt();
+          // Set constants
+          double MIN_JET_ENERGY = 0.01;  // TBD
 
-	// Jet veto maps
-	if (doJetveto) {
+          // Some problems with the code below:
+          // 1) JER should us primarily genPt, secondary recoPt
+          // 2) relDpt  should evaluate vs genPt to avoid <1/x> != 1/<x> bias
+          // 3) For (JME)NANO, should also check DR of genJet
+          // Probably small impact except for the last, which I add
 
-	  for (int itrg = 0; itrg != ntrg; ++itrg) {
-	    string &trg = vtrg[itrg];
-	    if (!(*mtrg[trg])) continue;
-	    
-	    jetvetoHistos *h = mhjv[trg]; assert(h);
-	    double abseta = fabs(p4.Eta());
-	    double pt = p4.Pt();
+          // The method presented here can be found in
+          // https://twiki.cern.ch/twiki/bin/viewauth/CMS/JetResolution and the
+          // corresponding code in
+          // https://github.com/cms-sw/cmssw/blob/CMSSW_8_0_25/PhysicsTools/PatUtils/interface/SmearedJetProducerT.h
+          double Reso = jer->getResolution({{JME::Binning::JetPt, jPt},
+                                            {JME::Binning::JetEta, jEta},
+                                            {JME::Binning::Rho, rho}});
+          double SF(1);
+          if (useJERSFvsPt && jersfvspt) {
+            jersfvspt->setJetEta(jEta);
+            jersfvspt->setJetPt(jPt);
+            jersfvspt->setRho(rho);
+            SF = jersfvspt->getCorrection();
+          } else if (!useJERSFvsPt && jersf) {
+            SF = jersf->getScaleFactor(
+                {{JME::Binning::JetEta, jEta}, {JME::Binning::Rho, rho}},
+                Variation::NOMINAL);
+          }
 
-	    h->h2pteta_all->Fill(p4.Eta(), p4.Pt(), w);
-	    if (Jet_jetId[i]>=4 && Flag_METFilters>0 &&
-		pt >= h->ptmin && pt < h->ptmax &&
-		abseta >= h->absetamin && abseta < h->absetamax) {
+          // Case 0: by default the JER correction factor is equal to 1
+          double CF = 1.;
+          // We see if the gen jet meets our requirements
+          bool condPt = (jPtGen > MIN_JET_ENERGY && dR < 0.2);
+          double relDPt = condPt ? (jPt - jPtGen) / jPt : 0.0;
+          bool condPtReso = fabs(relDPt) < 3 * Reso;
+          if (condPt and condPtReso) {
+            // Case 1: we have a "good" gen jet matched to the reco jet
+            // (indicated by positive gen jet pt)
+            CF += (SF - 1.) * relDPt;
+          } else if (SF > 1) {
+            // Case 2: we don't have a gen jet. Smear jet pt using a random
+            // gaussian variation
+            double sigma = Reso * std::sqrt(SF * SF - 1);
+            std::normal_distribution<> d(0, sigma);
+            CF += d(_mersennetwister);
+          }
 
-	      h->h2pteta_sel->Fill(p4.Eta(), p4.Pt(), w);
-	      h->h2phieta->Fill(p4.Eta(), p4.Phi(), w);
-	      if (doPFComposition) {
-		h->p2chf->Fill(p4.Eta(), p4.Phi(), Jet_chHEF[i], w);
-		h->p2nef->Fill(p4.Eta(), p4.Phi(), Jet_neEmEF[i], w);
-		h->p2nhf->Fill(p4.Eta(), p4.Phi(), Jet_neHEF[i], w);
-	      }
-	    }
-	  }
-	} // doJetveto
+          // Negative or too small smearFactor. Safety precautions.
+          double CFLimit = MIN_JET_ENERGY / jE;
+          if (CF < CFLimit) CF = CFLimit;
 
-	// Inclusive jets
-	if (doIncjet) {
-	  for (int itrg = 0; itrg != ntrg; ++itrg) {
-	    
-	    string &trg = vtrg[itrg];
-	    if (!(*mtrg[trg])) continue;
-	    
-	    incjetHistos *h = mhij[trg];
-	    
-	    h->h2pteta_all->Fill(p4.Eta(), p4.Pt(), w);
-	    if (Jet_jetId[i]>=4 && !Jet_jetveto[i] && Flag_METFilters>0) {
-	      
-	      if (p4.Pt() >= h->ptmin && p4.Pt() < h->ptmax &&
-		  fabs(p4.Rapidity()) > h->absetamin &&
-		  fabs(p4.Rapidity()) < h->absetamax)
-		
-		h->h2pteta_sel->Fill(p4.Eta(), p4.Pt(), w);
-	      
-	      if (fabs(p4.Rapidity())<1.3)
-		h->hpt13->Fill(p4.Pt(), w);
-	      int iy = int(fabs(p4.Rapidity()) / 0.5);
-	      if (iy<h->ny) h->vpt[iy]->Fill(p4.Pt(), w);
+          double origPt = Jet_pt[i];
+          double origJetMass = Jet_mass[i];
+          Jet_pt[i] = CF * origPt;
+          Jet_mass[i] = CF * origJetMass;
+          Jet_CF[i] = CF;
+          // Jet_smearFactor[i] = (1.0 - 1.0/CF);
 
-	      if (doPFComposition) {
-		double eta = p4.Eta();
-		double pt = p4.Pt();
-		h->p2pt->Fill(eta, pt, Jet_pt[i], w);
-		h->p2rho->Fill(eta, pt, rho, w);
-		h->p2chf->Fill(eta, pt, Jet_chHEF[i], w);
-		h->p2nhf->Fill(eta, pt, Jet_neHEF[i], w);
-		h->p2nef->Fill(eta, pt, Jet_neEmEF[i], w);
-		h->p2cef->Fill(eta, pt, Jet_chEmEF[i], w);
-		h->p2muf->Fill(eta, pt, Jet_muEF[i], w);
+          // type-I calculation is done later and propagates JER SF
+          // (needs to have unsmeard p4lr1c, fully smeared p4)
+        }  // i<smearNMax
+      }    // for njet
+    }      // JER smearing
 
-		if (fabs(eta)<1.3) {
-		  h->ppt13->Fill(pt, Jet_pt[i], w);
-		  h->prho13->Fill(pt, rho, w);
-		  h->pchf13->Fill(pt, Jet_chHEF[i], w);
-		  h->pnhf13->Fill(pt, Jet_neHEF[i], w);
-		  h->pnef13->Fill(pt, Jet_neEmEF[i], w);
-		  h->pcef13->Fill(pt, Jet_chEmEF[i], w);
-		  h->pmuf13->Fill(pt, Jet_muEF[i], w);
-		}
-	      } // doPFcomposition
-	    } // JetID+METfilter
-	  } // for itrg 
-	} // doIncJet
-	
-	// Calculate type-I MET (L1L2L3-RC) and MHT
-	if (p4.Pt()>15.) {
-	  p4mht -= p4;
-	  p4t1met += p4l1rc - p4; // same as (+raw-rcoff) -corr, 
-	  p4m0 += p4l1rc - p4;    // same as (+raw-rcoff) -corr
-	}
-	
-	// L2Res HDM (dijet)
-	if (i<2 && p4.Pt()>15.) {  // two leading jets
-	  p4m2 -= p4;
-	}
-	else if (p4.Pt()>15.) {
-	  p4mn -= p4;
-	}
+    // Calculate MC truth right after JEC and smearing to test closure
+    if (isMC && doMCtruth) {
+      mctruthHistos *h = mhmc["HLT_MC"];
 
-	// L3Res HDM (multijet)
-	if (i==0 && p4.Pt()>30.) { // leading jet
-	  p4lead += p4;
-	  p4m3 -= p4;
-	  p4leadRES += Jet_RES[i]*p4;
-	  ++nlead;
-	}
-	else if (i>0 && p4.Pt()>30. && fabs(p4.Eta())<2.5 &&
-		 DELTAPHI(p4.Phi(),p4lead.Phi())>1.0) { // recoil jets
-	  p4recoil += p4;
-	  p4m3 -= p4;
-	  p4recoilRES += Jet_RES[i]*p4;
-	  ++nrecoil;
-	}
-	else if (p4.Pt()>15.) { // all other jets
-	  p4mn3 -= p4;
-	}
-	
-	// Veto nearby jets for multijet topology
-	if (i>0 && p4.Pt()>30. && fabs(p4.Eta())<2.5 &&
-	    DELTAPHI(p4.Phi(),p4lead.Phi())<=1.0)
-	  multijet_vetonear = true;
+      // First, map reco->gen so can quickly invert gen->reco
+      // Also reset dR
+      map<int, int> genToReco;
+      for (int i = 0; i != njet; ++i) {
+        if (Jet_genJetIdx[i] >= 0) {
+          genToReco[Jet_genJetIdx[i]] = i;
+        }
+        Jet_genDR[i] = 999.;
+        h->h2pteta_rec->Fill(fabs(Jet_eta[i]), Jet_pt[i], w);
+      }  // for i
 
-	// Veto forward jets for multijet topology
-	if (i>0 && p4.Pt()>30. && fabs(p4.Eta())>=2.5)
-	  multijet_vetofwd = true;
-	
-      } // for i in njet
+      // Then loop over genjets and also update dr
+      for (UInt_t j = 0; j != nGenJet; ++j) {
+        p4g.SetPtEtaPhiM(GenJet_pt[j], GenJet_eta[j], GenJet_phi[j],
+                         GenJet_mass[j]);
+        double dR(999);
+        int i(-1);
+        if (genToReco.find(j) != genToReco.end()) {
+          i = genToReco[j];
+          p4.SetPtEtaPhiM(Jet_pt[i], Jet_eta[i], Jet_phi[i], Jet_mass[i]);
+          dR = p4g.DeltaR(p4);
+          Jet_genDR[i] = dR;
+        } else
+          p4.SetPtEtaPhiM(0, 0, 0, 0);
 
-      // Calculate unclustered MET from the remainders
-      // met = -j2 -jn -ju = m2 + mn + mu => mu = met -m2 -mn
-      p4mu = p4m0 -p4m2 -p4mn;
-      p4mu3 = p4m0 -p4m3 -p4mn3;
+        h->h2pteta_gen->Fill(fabs(p4g.Eta()), p4g.Pt(), w);
+        bool hasMatchVtx = (fabs(PV_z - GenVtx_z) < 0.2);
+        bool hasMatchJet = (dR < 0.2 && p4g.Pt() > 0 && p4.Pt() > 0);
+        if (hasMatchVtx && hasMatchJet) {
+          h->h2pteta->Fill(fabs(p4.Eta()), p4g.Pt(), w);
+          h->p2jes->Fill(fabs(p4.Eta()), p4g.Pt(), (1. - Jet_rawFactor[i]), w);
+          h->p2jsf->Fill(fabs(p4.Eta()), p4g.Pt(), smearJets ? Jet_CF[i] : 1,
+                         w);
+          h->p2r->Fill(fabs(p4.Eta()), p4g.Pt(), p4.Pt() / p4g.Pt(), w);
+        }
+        h->p2effz->Fill(fabs(p4g.Eta()), p4g.Pt(), hasMatchVtx ? 1 : 0, w);
+        if (hasMatchVtx)
+          h->p2eff->Fill(fabs(p4g.Eta()), p4g.Pt(), hasMatchJet ? 1 : 0, w);
+      }  // for j
 
-      // Also check recoil phi for multijet selection
+      // Finally check fake rates
+      for (int i = 0; i != njet; ++i) {
+        bool hasMatchVtx = (fabs(PV_z - GenVtx_z) < 0.2);
+        bool hasMatchJet = (Jet_genDR[i] < 0.2);
+        if (hasMatchVtx)
+          h->p2pur->Fill(fabs(Jet_eta[i]), Jet_pt[i], hasMatchJet ? 1 : 0);
+      }  // for i
+
+    }  // isMC && doMCtruth
+
+    /*
+    // Match leading jets to HLT objects
+    for (int i  = 0; i != min(njet,kMaxTrigJet); ++i) {
+      Jet_hltPt[i] = 0;
+      Jet_hltPtMax[i] = 0;
+      Jet_hltPtNear[i] = 0;
+      Jet_hltPtClose[i] = 0;
+      double dptmin(9999);
+      double drmin(999);
+      //double drmin2(999);
+      for (unsigned int j  = 0; j != nTrigObjJMEAK4; ++j) {
+        //if (TrigObjJMEAK4_id[j]==1) {
+        if (true) {
+          double dphi = DELTAPHI(Jet_phi[i], TrigObjJMEAK4_phi[j]);
+          double deta = fabs(Jet_eta[i] - TrigObjJMEAK4_eta[j]);
+          double dr  = sqrt(dphi*dphi + deta*deta);
+          // Closest in Pt HLT object within jet radius
+          if (dr < 0.4 && fabs(Jet_pt[i] - TrigObjJMEAK4_pt[j]) < dptmin) {
+            Jet_hltPtClose[i] = TrigObjJMEAK4_pt[j];
+            dptmin = fabs(Jet_pt[i] - TrigObjJMEAK4_pt[j]);
+          }
+          // Hardest HLT object within jet radius
+          if (dr < 0.4 && Jet_hltPtMax[i] < TrigObjJMEAK4_pt[j]) {
+            Jet_hltPtMax[i] = TrigObjJMEAK4_pt[j];
+          }
+          // Nearest HLT object within jet radius
+          if (dr < 0.4 && dr < drmin) {
+            Jet_hltPtNear[i] = TrigObjJMEAK4_pt[j];
+            drmin = dr;
+          }
+        } // TrigObjJMEAK4==Jet
+      } // for nTrigObjJMEAK4
+      // Require best match within dR<R/2 and also closest in pT at dR<R
+      if (drmin<0.2 && Jet_hltPtClose[i]==Jet_hltPtNear[i]) {
+        Jet_hltPt[i] = Jet_hltPtClose[i];
+      }
+    } // for njet
+    */
+
+    if (debugevent) cout << "Sum four-vectors for MHT" << endl << flush;
+
+    // int njet3 = 0;
+    // int njetn = 0;
+
+    // Reset MET vectors
+    if (isRun2) {
+      p4rawmet.SetPtEtaPhiM(ChsMET_pt, 0, ChsMET_phi, 0);
+      p4t1met.SetPtEtaPhiM(ChsMET_pt, 0, ChsMET_phi, 0);
+      p4m0.SetPtEtaPhiM(ChsMET_pt, 0, ChsMET_phi, 0);
+    } else {
+      p4rawmet.SetPtEtaPhiM(PuppiMET_pt, 0, PuppiMET_phi, 0);
+      p4t1met.SetPtEtaPhiM(PuppiMET_pt, 0, PuppiMET_phi, 0);
+      p4m0.SetPtEtaPhiM(PuppiMET_pt, 0, PuppiMET_phi, 0);
+    }
+    p4mht.SetPtEtaPhiM(0, 0, 0, 0);
+
+    // Reset dijet vectors
+    p4m2.SetPtEtaPhiM(0, 0, 0, 0);
+    p4mn.SetPtEtaPhiM(0, 0, 0, 0);
+    p4mu.SetPtEtaPhiM(0, 0, 0, 0);
+
+    // Reset multijet vectors
+    // bool ismultijet = (njet>=3); // multijet pre-setting
+    p4lead.SetPtEtaPhiM(0, 0, 0, 0);
+    p4recoil.SetPtEtaPhiM(0, 0, 0, 0);
+    p4m3.SetPtEtaPhiM(0, 0, 0, 0);
+    p4mn3.SetPtEtaPhiM(0, 0, 0, 0);
+    p4mu3.SetPtEtaPhiM(0, 0, 0, 0);
+    p4leadRES.SetPtEtaPhiM(0, 0, 0, 0);
+    p4recoilRES.SetPtEtaPhiM(0, 0, 0, 0);
+    int nlead(0);
+    int nrecoil(0);
+    bool multijet_vetonear(false);
+    bool multijet_vetofwd(false);
+
+    for (int i = 0; i != njet; ++i) {
+      // p4 is fully corrected and smeared
+      p4.SetPtEtaPhiM(Jet_pt[i], Jet_eta[i], Jet_phi[i], Jet_mass[i]);
+      // p4raw.SetPtEtaPhiM(Jet_pt[i]*(1.0-Jet_rawFactor[i]), Jet_eta[i],
+      //		   Jet_phi[i], Jet_mass[i]*(1.0-Jet_rawFactor[i]));
+      // p4l1rc.SetPtEtaPhiM(Jet_pt[i]*(1.0-Jet_l1rcFactor[i]), Jet_eta[i],
+      //		    Jet_phi[i], Jet_mass[i]*(1.0-Jet_l1rcFactor[i]));
+      //  p4l1rc is before corrections and smearing
+      p4l1rc.SetPtEtaPhiM(Jet_pt[i] / (smearJets && Jet_CF[i] ? Jet_CF[i] : 1) *
+                              (1.0 - Jet_l1rcFactor[i]),
+                          Jet_eta[i], Jet_phi[i],
+                          Jet_mass[i] /
+                              (smearJets && Jet_CF[i] ? Jet_CF[i] : 1) *
+                              (1.0 - Jet_l1rcFactor[i]));
+
+      // Jet veto maps
+      if (doJetveto) {
+        for (int itrg = 0; itrg != ntrg; ++itrg) {
+          string &trg = vtrg[itrg];
+          if (!(*mtrg[trg])) continue;
+
+          jetvetoHistos *h = mhjv[trg];
+          assert(h);
+          double abseta = fabs(p4.Eta());
+          double pt = p4.Pt();
+
+          h->h2pteta_all->Fill(p4.Eta(), p4.Pt(), w);
+          if (Jet_jetId[i] >= 4 && Flag_METFilters > 0 && pt >= h->ptmin &&
+              pt < h->ptmax && abseta >= h->absetamin &&
+              abseta < h->absetamax) {
+            h->h2pteta_sel->Fill(p4.Eta(), p4.Pt(), w);
+            h->h2phieta->Fill(p4.Eta(), p4.Phi(), w);
+            if (doPFComposition) {
+              h->p2chf->Fill(p4.Eta(), p4.Phi(), Jet_chHEF[i], w);
+              h->p2nef->Fill(p4.Eta(), p4.Phi(), Jet_neEmEF[i], w);
+              h->p2nhf->Fill(p4.Eta(), p4.Phi(), Jet_neHEF[i], w);
+            }
+          }
+        }
+      }  // doJetveto
+
+      // Inclusive jets
+      if (doIncjet) {
+        for (int itrg = 0; itrg != ntrg; ++itrg) {
+          string &trg = vtrg[itrg];
+          if (!(*mtrg[trg])) continue;
+
+          incjetHistos *h = mhij[trg];
+
+          h->h2pteta_all->Fill(p4.Eta(), p4.Pt(), w);
+          if (Jet_jetId[i] >= 4 && !Jet_jetveto[i] && Flag_METFilters > 0) {
+            if (p4.Pt() >= h->ptmin && p4.Pt() < h->ptmax &&
+                fabs(p4.Rapidity()) > h->absetamin &&
+                fabs(p4.Rapidity()) < h->absetamax)
+
+              h->h2pteta_sel->Fill(p4.Eta(), p4.Pt(), w);
+
+            if (fabs(p4.Rapidity()) < 1.3) h->hpt13->Fill(p4.Pt(), w);
+            int iy = int(fabs(p4.Rapidity()) / 0.5);
+            if (iy < h->ny) h->vpt[iy]->Fill(p4.Pt(), w);
+
+            if (doPFComposition) {
+              double eta = p4.Eta();
+              double pt = p4.Pt();
+              h->p2pt->Fill(eta, pt, Jet_pt[i], w);
+              h->p2rho->Fill(eta, pt, rho, w);
+              h->p2chf->Fill(eta, pt, Jet_chHEF[i], w);
+              h->p2nhf->Fill(eta, pt, Jet_neHEF[i], w);
+              h->p2nef->Fill(eta, pt, Jet_neEmEF[i], w);
+              h->p2cef->Fill(eta, pt, Jet_chEmEF[i], w);
+              h->p2muf->Fill(eta, pt, Jet_muEF[i], w);
+
+              if (fabs(eta) < 1.3) {
+                h->ppt13->Fill(pt, Jet_pt[i], w);
+                h->prho13->Fill(pt, rho, w);
+                h->pchf13->Fill(pt, Jet_chHEF[i], w);
+                h->pnhf13->Fill(pt, Jet_neHEF[i], w);
+                h->pnef13->Fill(pt, Jet_neEmEF[i], w);
+                h->pcef13->Fill(pt, Jet_chEmEF[i], w);
+                h->pmuf13->Fill(pt, Jet_muEF[i], w);
+              }
+            }  // doPFcomposition
+          }    // JetID+METfilter
+        }      // for itrg
+      }        // doIncJet
+
+      // Calculate type-I MET (L1L2L3-RC) and MHT
+      if (p4.Pt() > 15.) {
+        p4mht -= p4;
+        p4t1met += p4l1rc - p4;  // same as (+raw-rcoff) -corr,
+        p4m0 += p4l1rc - p4;     // same as (+raw-rcoff) -corr
+      }
+
+      // L2Res HDM (dijet)
+      if (i < 2 && p4.Pt() > 15.) {  // two leading jets
+        p4m2 -= p4;
+      } else if (p4.Pt() > 15.) {
+        p4mn -= p4;
+      }
+
+      // L3Res HDM (multijet)
+      if (i == 0 && p4.Pt() > 30.) {  // leading jet
+        p4lead += p4;
+        p4m3 -= p4;
+        p4leadRES += Jet_RES[i] * p4;
+        ++nlead;
+      } else if (i > 0 && p4.Pt() > 30. && fabs(p4.Eta()) < 2.5 &&
+                 DELTAPHI(p4.Phi(), p4lead.Phi()) > 1.0) {  // recoil jets
+        p4recoil += p4;
+        p4m3 -= p4;
+        p4recoilRES += Jet_RES[i] * p4;
+        ++nrecoil;
+      } else if (p4.Pt() > 15.) {  // all other jets
+        p4mn3 -= p4;
+      }
+
+      // Veto nearby jets for multijet topology
+      if (i > 0 && p4.Pt() > 30. && fabs(p4.Eta()) < 2.5 &&
+          DELTAPHI(p4.Phi(), p4lead.Phi()) <= 1.0)
+        multijet_vetonear = true;
+
+      // Veto forward jets for multijet topology
+      if (i > 0 && p4.Pt() > 30. && fabs(p4.Eta()) >= 2.5)
+        multijet_vetofwd = true;
+
+    }  // for i in njet
+
+    // Calculate unclustered MET from the remainders
+    // met = -j2 -jn -ju = m2 + mn + mu => mu = met -m2 -mn
+    p4mu = p4m0 - p4m2 - p4mn;
+    p4mu3 = p4m0 - p4m3 - p4mn3;
+
+    // Also check recoil phi for multijet selection
+    double ptrecoil = p4recoil.Pt();
+    double dphirecoil = DELTAPHI(p4lead.Phi(), p4recoil.Phi());
+    // Use tightLepVeto for JetID
+    bool ismultijet =
+        (nlead == 1 && nrecoil >= 2 && !multijet_vetonear &&
+         !multijet_vetofwd && fabs(dphirecoil - TMath::Pi()) < 0.3 &&
+         Flag_METFilters > 0 && Jet_pt[0] > 30. && fabs(Jet_eta[0]) < 1.3 &&
+         Jet_jetId[0] >= 4 && Jet_pt[1] > 30. && fabs(Jet_eta[1]) < 2.5 &&
+         Jet_jetId[1] >= 4 && Jet_pt[2] > 30. && fabs(Jet_eta[2]) < 2.5 &&
+         Jet_jetId[2] >= 4 && !Jet_jetveto[0] && !Jet_jetveto[1] &&
+         !Jet_jetveto[2] && Jet_pt[1] < 0.6 * ptrecoil &&
+         Jet_pt[2] < 0.6 * ptrecoil);
+
+    // Calculate Crecoil
+    double logCrecoil(0);
+    double ptavp3(0);
+    if (ismultijet && doMultijet) {
+      // Proper bisector axis (equal angles to each jet)
+      p4b3.SetPtEtaPhiM(0, 0, 0, 0);
+      p4b3r.SetPtEtaPhiM(1, 0, p4recoil.Phi(), 0);
+      p4b3l.SetPtEtaPhiM(1, 0, p4lead.Phi(), 0);
+      p4b3 += p4b3r;
+      p4b3 -= p4b3l;
+      p4b3.SetPtEtaPhiM(p4b3.Pt(), 0., p4b3.Phi(), 0.);
+      p4b3 *= 1. / p4b3.Pt();
+
+      // Average projection pT to bisector axis, pT,avp
+      // as explained in JME-21-001 (HDM method: bisector extension)
+      ptavp3 = 0.5 * (p4recoil.Vect().Dot(p4b3.Vect()) -
+                      p4lead.Vect().Dot(p4b3.Vect()));
+
+      double ptlead = p4lead.Pt();
+      double ptave = 0.5 * (ptlead + ptrecoil);
+      for (int i = 0; i != njet; ++i) {
+        // Crecoil = exp(sum_i F_i log(f_i)), where
+        // f_i = pT,i / pTrecoil, F_i = f_i cos(Delta phi(i,recoil))
+        // To do this before calculating pTrecoil, we could do
+        // sum_i pT,i * cos(Delta phi(i,-lead))* log(pT,i / pT,lead)
+        // which should for practical purposes be the same
+        // Maybe safer here as originally defined, just careful with selection
+
+        // Make sure selection here matches the one above for p4recoil
+        p4.SetPtEtaPhiM(Jet_pt[i], Jet_eta[i], Jet_phi[i], Jet_mass[i]);
+        if (i > 0 && p4.Pt() > 30. && fabs(p4.Eta()) < 2.5 &&
+            DELTAPHI(p4.Phi(), p4lead.Phi()) > 1.0) {
+          double pti = p4.Pt();
+          double fi = pti / ptrecoil;
+          double Fi = fi * cos(DELTAPHI(p4.Phi(), p4recoil.Phi()));
+          logCrecoil += Fi * log(fi);
+
+          if (doMultijet2Drecoil) {
+            for (int itrg = 0; itrg != ntrg; ++itrg) {
+              string &trg = vtrg[itrg];
+              if (!(*mtrg[trg])) continue;
+
+              multijetHistos *h = mhmj[trg];
+
+              // Assumption is that sum_i F_i = 1, but should check?
+              h->h2recoila->Fill(ptavp3, pti, w * Fi);
+              h->h2recoilm->Fill(ptave, pti, w * Fi);
+              h->h2recoill->Fill(ptlead, pti, w * Fi);
+              h->h2recoilr->Fill(ptrecoil, pti, w * Fi);
+
+              if (doPFComposition) {
+                h->ppt25->Fill(ptavp3, Jet_pt[i], w * Fi);
+                h->pchf25->Fill(ptavp3, Jet_chHEF[i], w * Fi);
+                h->pnhf25->Fill(ptavp3, Jet_neHEF[i], w * Fi);
+                h->pnef25->Fill(ptavp3, Jet_neEmEF[i], w * Fi);
+                h->pcef25->Fill(ptavp3, Jet_chEmEF[i], w * Fi);
+                h->pmuf25->Fill(ptavp3, Jet_muEF[i], w * Fi);
+              }  // doPFcomposition
+
+            }  // for itrg
+          }    // doMultijet2Drecoil
+        }      // good recoil jet
+      }        // for i in injet
+    }          // doMultijet
+    double Crecoil = exp(logCrecoil);
+
+    hnjet->Fill(njet, w);
+
+    // Dijet pre-selection
+    if (njet >= 2) {
+      if (debugevent) cout << "Dijet analysis" << endl << flush;
+
+      // Both leading jets act as tag and probe in turn
+      for (int itag = 0; itag != 2; ++itag) {
+        // Tag and probe jet selection
+        int iprobe = (itag == 0 ? 1 : 0);
+        p4t.SetPtEtaPhiM(Jet_pt[itag], Jet_eta[itag], Jet_phi[itag],
+                         Jet_mass[itag]);
+        p4p.SetPtEtaPhiM(Jet_pt[iprobe], Jet_eta[iprobe], Jet_phi[iprobe],
+                         Jet_mass[iprobe]);
+
+        // Dijet observables
+        double eta = p4p.Eta();
+        double pttag = p4t.Pt();
+        double ptprobe = p4p.Pt();
+        double ptave = 0.5 * (pttag + ptprobe);
+        double asymm = (ptprobe - pttag) / ptave;
+
+        double dphi = DELTAPHI(p4t.Phi(), p4p.Phi());
+        double dr = p4t.DeltaR(p4p);
+
+        // Proper bisector axis (equal angles to each jet)
+        p4b.SetPtEtaPhiM(0, 0, 0, 0);
+        p4bt.SetPtEtaPhiM(1, 0, p4t.Phi(), 0);
+        p4bp.SetPtEtaPhiM(1, 0, p4p.Phi(), 0);
+        p4b += p4bt;
+        p4b -= p4bp;
+        p4b.SetPtEtaPhiM(p4b.Pt(), 0., p4b.Phi(), 0.);
+        p4b *= 1. / p4b.Pt();
+        p4bx.SetPtEtaPhiM(p4b.Pt(), 0., p4b.Phi() + 0.5 * TMath::Pi(), 0.);
+
+        // Average projection pT to bisector axis, pT,avp
+        // as explained in JME-21-001 (HDM method: bisector extension)
+        double ptavp2 =
+            0.5 * (p4t.Vect().Dot(p4b.Vect()) - p4p.Vect().Dot(p4b.Vect()));
+
+        double m0b = 1 + (p4m0.Vect().Dot(p4b.Vect())) / ptavp2;
+        double m2b = 1 + (p4m2.Vect().Dot(p4b.Vect())) / ptavp2;
+        double mnb = 0 + (p4mn.Vect().Dot(p4b.Vect())) / ptavp2;
+        double mub = 0 + (p4mu.Vect().Dot(p4b.Vect())) / ptavp2;
+        // double mob = 0 + (p4mo.Vect().Dot(p4b.Vect()))/ptavp;
+
+        double m0bx = 1 + (p4m0.Vect().Dot(p4bx.Vect())) / ptavp2;
+        double m2bx = 1 + (p4m2.Vect().Dot(p4bx.Vect())) / ptavp2;
+
+        // Extras
+        double cu = 1. / 0.92;
+        double mnub = 0 + ((p4mn + cu * p4mu).Vect().Dot(p4b.Vect())) / ptavp2;
+        double mnbx = 0 + (p4mn.Vect().Dot(p4bx.Vect())) / ptavp2;
+        double mubx = 0 + (p4mu.Vect().Dot(p4bx.Vect())) / ptavp2;
+        double mnubx =
+            0 + ((p4mn + cu * p4mu).Vect().Dot(p4bx.Vect())) / ptavp2;
+
+        // bisector axis => dijet axis really (not equal angles)
+        p4d.SetPtEtaPhiM(0, 0, 0, 0);
+        p4d += p4t;
+        p4d -= p4p;
+        p4d.SetPtEtaPhiM(p4d.Pt(), 0., p4d.Phi(), 0.);
+        p4d *= 1. / p4d.Pt();
+        p4dx.SetPtEtaPhiM(p4d.Pt(), 0., p4d.Phi() + 0.5 * TMath::Pi(), 0.);
+
+        double m0d = 1 + (p4m0.Vect().Dot(p4d.Vect())) / ptave;
+        double m2d = 1 + (p4m2.Vect().Dot(p4d.Vect())) / ptave;
+        double mnd = 0 + (p4mn.Vect().Dot(p4d.Vect())) / ptave;
+        double mud = 0 + (p4mu.Vect().Dot(p4d.Vect())) / ptave;
+        // double mod = 0 + (p4mo.Vect().Dot(p4d.Vect()))/ptave;
+
+        double m0dx = 1 + (p4m0.Vect().Dot(p4dx.Vect())) / ptave;
+        double m2dx = 1 + (p4m2.Vect().Dot(p4dx.Vect())) / ptave;
+
+        // central axis + pttag norm&binning
+        p4c.SetPtEtaPhiM(0, 0, 0, 0);
+        p4c += p4t;
+        p4c.SetPtEtaPhiM(p4c.Pt(), 0., p4c.Phi(), 0.);
+        p4c *= 1. / p4c.Pt();
+        p4cx.SetPtEtaPhiM(p4c.Pt(), 0., p4c.Phi() + 0.5 * TMath::Pi(), 0.);
+
+        double m0c = 1 + (p4m0.Vect().Dot(p4c.Vect())) / pttag;
+        double m2c = 1 + (p4m2.Vect().Dot(p4c.Vect())) / pttag;
+        double mnc = 0 + (p4mn.Vect().Dot(p4c.Vect())) / pttag;
+        double muc = 0 + (p4mu.Vect().Dot(p4c.Vect())) / pttag;
+        // double moc = 0 + (p4mo.Vect().Dot(p4c.Vect()))/pttag;
+
+        double m0cx = 1 + (p4m0.Vect().Dot(p4cx.Vect())) / pttag;
+        double m2cx = 1 + (p4m2.Vect().Dot(p4cx.Vect())) / pttag;
+
+        // forward axis ("backwards" to tag hemisphere) + ptprobe norm&binning
+        p4f.SetPtEtaPhiM(0, 0, 0, 0);
+        p4f -= p4p;
+        p4f.SetPtEtaPhiM(p4f.Pt(), 0., p4f.Phi(), 0.);
+        p4f *= 1. / p4f.Pt();
+        p4fx.SetPtEtaPhiM(p4f.Pt(), 0., p4f.Phi() + 0.5 * TMath::Pi(), 0.);
+
+        double m0f = 1 + (p4m0.Vect().Dot(p4f.Vect())) / ptprobe;
+        double m2f = 1 + (p4m2.Vect().Dot(p4f.Vect())) / ptprobe;
+        double mnf = 0 + (p4mn.Vect().Dot(p4f.Vect())) / ptprobe;
+        double muf = 0 + (p4mu.Vect().Dot(p4f.Vect())) / ptprobe;
+        // double mof = 0 + (p4mo.Vect().Dot(p4f.Vect()))/ptprobe;
+
+        double m0fx = 1 + (p4m0.Vect().Dot(p4fx.Vect())) / ptprobe;
+        double m2fx = 1 + (p4m2.Vect().Dot(p4fx.Vect())) / ptprobe;
+
+        // Dijet mass
+        p4dj = p4t;
+        p4dj += p4p;
+        double mjj = p4dj.M();
+        double deta = fabs(p4p.Eta() - p4t.Eta());
+
+        bool isdijet =
+            (fabs(p4t.Eta()) < 1.3 && dphi > 2.7 && fabs(asymm) < maxa &&  //!
+             p4t.Pt() > 15. && Jet_jetId[itag] >= 4 && p4p.Pt() > 15. &&
+             Jet_jetId[iprobe] >= 4 && !Jet_jetveto[itag] &&
+             !Jet_jetveto[iprobe] &&  //!
+             Flag_METFilters > 0);
+        // DESY selection. Note tighter asymmetry cut and allJetsGood
+        bool isdijet2 =
+            (fabs(p4t.Eta()) < 1.3 && dphi > 2.7 &&
+             fabs((pttag - ptprobe) / (pttag + ptprobe)) < 0.7 &&  //!
+             // fabs(asymm)<maxa && //!
+             p4t.Pt() > 15. && Jet_jetId[itag] >= 4 && p4p.Pt() > 15. &&
+             Jet_jetId[iprobe] >= 4 &&
+             //! Jet_jetveto[itag] && !Jet_jetveto[iprobe] && //!
+             allJetsGood &&  //!
+             Flag_METFilters > 0);
+
+        for (int itrg = 0; itrg != ntrg; ++itrg) {
+          if (debugevent)
+            cout << "Check trigger #" << itrg << " for dijet " << endl << flush;
+
+          string &trg = vtrg[itrg];
+          if (!(*mtrg[trg])) continue;
+
+          if (doJetveto && isdijet) {
+            jetvetoHistos *h = mhjv[trg];
+
+            if (doJetvetoVariants) h->h2ptaeta_all->Fill(eta, ptave, w);
+            if (ptave >= h->ptmin && ptave < h->ptmax &&
+                fabs(eta) >= h->absetamin && fabs(eta) < h->absetamax) {
+              if (doJetvetoVariants) h->h2ptaeta_sel->Fill(eta, ptave, w);
+              h->p2asymm->Fill(eta, p4p.Phi(), asymm, w);
+              h->h2phieta_ave->Fill(eta, p4p.Phi(), w);
+            }
+
+            if (doJetvetoVariants) {
+              if (doPFComposition && fabs(p4t.Eta()) < 1.3) {
+                h->h2ptteta_all->Fill(eta, ptave, w);
+                if (pttag >= h->ptmin && pttag < h->ptmax) {
+                  h->h2ptteta_sel->Fill(eta, pttag, w);
+                  h->h2phieta_tag->Fill(eta, p4.Phi(), w);
+                  h->p2chftp->Fill(eta, p4p.Phi(), Jet_chHEF[iprobe], w);
+                  h->p2nhftp->Fill(eta, p4p.Phi(), Jet_neHEF[iprobe], w);
+                  h->p2neftp->Fill(eta, p4p.Phi(), Jet_neEmEF[iprobe], w);
+                }
+              }
+            }
+          }  // doJetveto
+
+          if (doDijet && isdijet) {
+            dijetHistos *h = mhdj[trg];
+            double res = Jet_RES[iprobe] / Jet_RES[itag];
+
+            h->h2pteta_aball->Fill(eta, ptavp2, w);
+            h->h2pteta_adall->Fill(eta, ptave, w);
+            h->h2pteta_tcall->Fill(eta, pttag, w);
+            h->h2pteta_pfall->Fill(eta, ptprobe, w);
+
+            // Bisector (proper)
+            if (ptavp2 >= h->ptmin && ptavp2 < h->ptmax &&
+                fabs(eta) >= h->absetamin && fabs(eta) < h->absetamax) {
+              h->h2pteta_absel->Fill(eta, ptavp2, w);
+            }
+            {  // Bisector (proper)
+              if (doDijetJER) {
+                h->p2m0->Fill(eta, ptavp2, m0b, w);
+                h->p2m0x->Fill(eta, ptavp2, m0bx, w);
+                h->p2m2->Fill(eta, ptavp2, m2b, w);
+                h->p2m2x->Fill(eta, ptavp2, m2bx, w);
+              }
+              if (doPFComposition) {
+                h->p2pt->Fill(eta, ptavp2, Jet_pt[iprobe], w);
+                h->p2rho->Fill(eta, ptavp2, rho, w);
+                h->p2chf->Fill(eta, ptavp2, Jet_chHEF[iprobe], w);
+                h->p2nhf->Fill(eta, ptavp2, Jet_neHEF[iprobe], w);
+                h->p2nef->Fill(eta, ptavp2, Jet_neEmEF[iprobe], w);
+                h->p2cef->Fill(eta, ptavp2, Jet_chEmEF[iprobe], w);
+                h->p2muf->Fill(eta, ptavp2, Jet_muEF[iprobe], w);
+
+                h->ppt13->Fill(ptavp2, Jet_pt[itag], w);
+                h->prho13->Fill(ptavp2, rho, w);
+                h->pchf13->Fill(ptavp2, Jet_chHEF[itag], w);
+                h->pnhf13->Fill(ptavp2, Jet_neHEF[itag], w);
+                h->pnef13->Fill(ptavp2, Jet_neEmEF[itag], w);
+                h->pcef13->Fill(ptavp2, Jet_chEmEF[itag], w);
+                h->pmuf13->Fill(ptavp2, Jet_muEF[itag], w);
+              }
+
+              h->p2resab->Fill(eta, ptavp2, res, w);
+              h->p2m0ab->Fill(eta, ptavp2, m0b, w);
+              h->p2m2ab->Fill(eta, ptavp2, m2b, w);
+              h->p2mnab->Fill(eta, ptavp2, mnb, w);
+              h->p2muab->Fill(eta, ptavp2, mub, w);
+            }
+            // Dijet axis
+            if (ptave >= h->ptmin && ptave < h->ptmax &&
+                fabs(eta) >= h->absetamin && fabs(eta) < h->absetamax) {
+              h->h2pteta_adsel->Fill(eta, ptave, w);
+            }
+            {  // Dijet axis
+              h->p2resad->Fill(eta, ptave, res, w);
+              h->p2m0ad->Fill(eta, ptave, m0d, w);
+              h->p2m2ad->Fill(eta, ptave, m2d, w);
+              h->p2mnad->Fill(eta, ptave, mnd, w);
+              h->p2muad->Fill(eta, ptave, mud, w);
+            }
+            // Tag jet axis
+            if (pttag >= h->ptmin && pttag < h->ptmax) {
+              h->h2pteta_tcsel->Fill(eta, pttag, w);
+            }
+            // Tag jet axis
+            {
+              h->p2restc->Fill(eta, pttag, res, w);
+              h->p2m0tc->Fill(eta, pttag, m0c, w);
+              h->p2m2tc->Fill(eta, pttag, m2c, w);
+              h->p2mntc->Fill(eta, pttag, mnc, w);
+              h->p2mutc->Fill(eta, pttag, muc, w);
+            }
+            // Probe jet axis
+            if (ptprobe >= h->ptmin && ptprobe < h->ptmax) {
+              h->h2pteta_pfsel->Fill(eta, ptprobe, w);
+            }
+            // Probe jet axis
+            {
+              h->p2respf->Fill(eta, ptprobe, res, w);
+              h->p2m0pf->Fill(eta, ptprobe, m0f, w);
+              h->p2m2pf->Fill(eta, ptprobe, m2f, w);
+              h->p2mnpf->Fill(eta, ptprobe, mnf, w);
+              h->p2mupf->Fill(eta, ptprobe, muf, w);
+            }
+          }  // doDijet
+
+          if (doDijet2 && isdijet2) {
+            dijetHistos2 *h = mhdj2[trg];
+            double res = Jet_RES[iprobe] / Jet_RES[itag];
+            double jsf =
+                (smearJets && Jet_CF[itag] > 0 ? Jet_CF[iprobe] / Jet_CF[itag]
+                                               : 1);
+
+            double abseta = fabs(eta);
+            h->h2pteta->Fill(abseta, ptavp2, w);
+
+            h->p2res->Fill(abseta, ptavp2, res, w);
+            h->p2jsf->Fill(abseta, ptavp2, jsf, w);
+            h->p2m0->Fill(abseta, ptavp2, m0b, w);
+            h->p2m2->Fill(abseta, ptavp2, m2b, w);
+            h->p2mn->Fill(abseta, ptavp2, mnb, w);
+            h->p2mu->Fill(abseta, ptavp2, mub, w);
+
+            h->p2m0x->Fill(abseta, ptavp2, m0bx, w);
+            h->p2m2x->Fill(abseta, ptavp2, m2bx, w);
+
+            // Extras for FSR studies
+            h->p2mnu->Fill(abseta, ptavp2, mnub, w);
+            h->p2mnx->Fill(abseta, ptavp2, mnbx, w);
+            h->p2mux->Fill(abseta, ptavp2, mubx, w);
+            h->p2mnux->Fill(abseta, ptavp2, mnubx, w);
+
+            h->h2ptetatc->Fill(abseta, pttag, w);
+            h->p2restc->Fill(abseta, pttag, res, w);
+            h->p2jsftc->Fill(abseta, pttag, jsf, w);
+            h->p2m0tc->Fill(abseta, pttag, m0c, w);
+            h->p2m2tc->Fill(abseta, pttag, m2c, w);
+            h->p2mntc->Fill(abseta, pttag, mnc, w);
+            h->p2mutc->Fill(abseta, pttag, muc, w);
+
+            h->h2ptetapf->Fill(abseta, ptprobe, w);
+            h->p2respf->Fill(abseta, ptprobe, res, w);
+            h->p2jsfpf->Fill(abseta, ptprobe, jsf, w);
+            h->p2m0pf->Fill(abseta, ptprobe, m0f, w);
+            h->p2m2pf->Fill(abseta, ptprobe, m2f, w);
+            h->p2mnpf->Fill(abseta, ptprobe, mnf, w);
+            h->p2mupf->Fill(abseta, ptprobe, muf, w);
+          }  // doDijet2
+
+        }  // for itrg
+
+        // Dijet without deltaphi cut
+        if (fabs(p4t.Eta() < 1.3) && fabs(asymm) < maxa) {
+          if (ptave >= 40) {
+            h2dphi->Fill(p4p.Eta(), dphi, w);
+          }
+        }
+      }  // for itag
+    }    // njet>=2
+
+    // Multijet selection
+    if (ismultijet && doMultijet) {
+      if (debugevent) cout << "Analyze multijet" << endl << flush;
+
+      // pTave binning
+      double ptlead = p4lead.Pt();
       double ptrecoil = p4recoil.Pt();
-      double dphirecoil = DELTAPHI(p4lead.Phi(), p4recoil.Phi());
-      // Use tightLepVeto for JetID
-      bool ismultijet =
-	(nlead==1 && nrecoil>=2 && !multijet_vetonear && !multijet_vetofwd &&
-	 fabs(dphirecoil-TMath::Pi())<0.3 && Flag_METFilters>0 &&
-	 Jet_pt[0]>30. && fabs(Jet_eta[0])<1.3 && Jet_jetId[0]>=4 &&
-	 Jet_pt[1]>30. && fabs(Jet_eta[1])<2.5 && Jet_jetId[1]>=4 &&
-	 Jet_pt[2]>30. && fabs(Jet_eta[2])<2.5 && Jet_jetId[2]>=4 &&
-	 !Jet_jetveto[0] && !Jet_jetveto[1] && !Jet_jetveto[2] &&
-	 Jet_pt[1] < 0.6*ptrecoil && Jet_pt[2] < 0.6*ptrecoil);
+      double ptave = 0.5 * (ptlead + ptrecoil);
+      // double ptavp3 defined earlier, as is p4b3
 
-      // Calculate Crecoil
-      double logCrecoil(0);
-      double ptavp3(0);
-      if (ismultijet && doMultijet) {
+      // Projection to transverse plane (is this necessary?)
+      p4m0.SetPtEtaPhiM(p4m0.Pt(), 0., p4m0.Phi(), 0.);
+      p4m3.SetPtEtaPhiM(p4m3.Pt(), 0., p4m3.Phi(), 0.);
+      p4mn3.SetPtEtaPhiM(p4mn3.Pt(), 0., p4mn3.Phi(), 0.);
 
-	// Proper bisector axis (equal angles to each jet)
-	p4b3.SetPtEtaPhiM(0,0,0,0);
-	p4b3r.SetPtEtaPhiM(1,0,p4recoil.Phi(),0);
-	p4b3l.SetPtEtaPhiM(1,0,p4lead.Phi(),0);
-	p4b3 += p4b3r;
-	p4b3 -= p4b3l;
-	p4b3.SetPtEtaPhiM(p4b3.Pt(),0.,p4b3.Phi(),0.);
-	p4b3 *= 1./p4b3.Pt();
+      // Bisector axis p4b3 defined earlier (equal angles)
+      double m0b = 1 + (p4m0.Vect().Dot(p4b3.Vect())) / ptave;
+      double m3b = 1 + (p4m3.Vect().Dot(p4b3.Vect())) / ptave;
+      double mnb = 0 + (p4mn3.Vect().Dot(p4b3.Vect())) / ptave;
+      double mub = 0 + (p4mu3.Vect().Dot(p4b3.Vect())) / ptave;
 
-	// Average projection pT to bisector axis, pT,avp
-	// as explained in JME-21-001 (HDM method: bisector extension)
-	ptavp3 = 0.5*(p4recoil.Vect().Dot(p4b3.Vect()) -
-		      p4lead.Vect().Dot(p4b3.Vect()));
-	
-	double ptlead = p4lead.Pt();
-	double ptave = 0.5*(ptlead+ptrecoil);
-	for (int i = 0; i != njet; ++i) {
-	
-	  // Crecoil = exp(sum_i F_i log(f_i)), where
-	  // f_i = pT,i / pTrecoil, F_i = f_i cos(Delta phi(i,recoil))
-	  // To do this before calculating pTrecoil, we could do
-	  // sum_i pT,i * cos(Delta phi(i,-lead))* log(pT,i / pT,lead)
-	  // which should for practical purposes be the same
-	  // Maybe safer here as originally defined, just careful with selection
-	  
-	  // Make sure selection here matches the one above for p4recoil
-	  p4.SetPtEtaPhiM(Jet_pt[i], Jet_eta[i], Jet_phi[i], Jet_mass[i]);
-	  if (i>0 && p4.Pt()>30. && fabs(p4.Eta())<2.5 &&
-	      DELTAPHI(p4.Phi(),p4lead.Phi())>1.0) {
-	    double pti = p4.Pt();
-	    double fi = pti / ptrecoil;
-	    double Fi = fi * cos(DELTAPHI(p4.Phi(), p4recoil.Phi()));
-	    logCrecoil += Fi * log(fi);
-	    
-	    if (doMultijet2Drecoil) {
+      // Dijet axis (not equal angles)
+      p4m.SetPtEtaPhiM(0, 0, 0, 0);
+      p4m -= p4lead;
+      p4m += p4recoil;
+      p4m.SetPtEtaPhiM(p4m.Pt(), 0., p4m.Phi(), 0.);
+      p4m *= 1. / p4m.Pt();
 
-	      for (int itrg = 0; itrg != ntrg; ++itrg) {
-	  
-		string &trg = vtrg[itrg];
-		if (!(*mtrg[trg])) continue;
-		
-		multijetHistos *h = mhmj[trg];
+      double m0m = 1 + (p4m0.Vect().Dot(p4m.Vect())) / ptave;
+      double m3m = 1 + (p4m3.Vect().Dot(p4m.Vect())) / ptave;
+      double mnm = 0 + (p4mn3.Vect().Dot(p4m.Vect())) / ptave;
+      double mum = 0 + (p4mu3.Vect().Dot(p4m.Vect())) / ptave;
 
-		// Assumption is that sum_i F_i = 1, but should check?
-		h->h2recoila->Fill(ptavp3, pti, w*Fi);
-		h->h2recoilm->Fill(ptave, pti, w*Fi);
-		h->h2recoill->Fill(ptlead, pti, w*Fi);
-		h->h2recoilr->Fill(ptrecoil, pti, w*Fi);
+      p4l.SetPtEtaPhiM(0, 0, 0, 0);
+      p4l -= p4lead;
+      p4l.SetPtEtaPhiM(p4l.Pt(), 0., p4l.Phi(), 0.);
+      p4l *= 1. / p4l.Pt();
 
-		if (doPFComposition) {
-		  h->ppt25->Fill(ptavp3, Jet_pt[i], w*Fi);
-		  h->pchf25->Fill(ptavp3, Jet_chHEF[i], w*Fi);
-		  h->pnhf25->Fill(ptavp3, Jet_neHEF[i], w*Fi);
-		  h->pnef25->Fill(ptavp3, Jet_neEmEF[i], w*Fi);
-		  h->pcef25->Fill(ptavp3, Jet_chEmEF[i], w*Fi);
-		  h->pmuf25->Fill(ptavp3, Jet_muEF[i], w*Fi);
-		} // doPFcomposition
-		
-	      } // for itrg
-	    } // doMultijet2Drecoil
-	  } // good recoil jet
-	} // for i in injet
-      } // doMultijet
-      double Crecoil = exp(logCrecoil);
+      double m0l = 1 + (p4m0.Vect().Dot(p4l.Vect())) / ptlead;
+      double m3l = 1 + (p4m3.Vect().Dot(p4l.Vect())) / ptlead;
+      double mnl = 0 + (p4mn3.Vect().Dot(p4l.Vect())) / ptlead;
+      double mul = 0 + (p4mu3.Vect().Dot(p4l.Vect())) / ptlead;
 
-      hnjet->Fill(njet,w);
+      p4r.SetPtEtaPhiM(0, 0, 0, 0);
+      p4r += p4recoil;
+      p4r.SetPtEtaPhiM(p4r.Pt(), 0., p4r.Phi(), 0.);
+      p4r *= 1. / p4r.Pt();
 
-      // Dijet pre-selection
-      if (njet>=2) {
+      double m0r = 1 + (p4m0.Vect().Dot(p4r.Vect())) / ptrecoil;
+      double m3r = 1 + (p4m3.Vect().Dot(p4r.Vect())) / ptrecoil;
+      double mnr = 0 + (p4mn3.Vect().Dot(p4r.Vect())) / ptrecoil;
+      double mur = 0 + (p4mu3.Vect().Dot(p4r.Vect())) / ptrecoil;
 
-	if (debugevent) cout << "Dijet analysis" << endl << flush;
-      
-	// Both leading jets act as tag and probe in turn
-	for (int itag = 0; itag != 2; ++itag) {
+      for (int itrg = 0; itrg != ntrg; ++itrg) {
+        string &trg = vtrg[itrg];
+        if (!(*mtrg[trg])) continue;
 
-	  // Tag and probe jet selection
-	  int iprobe = (itag == 0 ? 1 : 0);
-	  p4t.SetPtEtaPhiM(Jet_pt[itag], Jet_eta[itag], Jet_phi[itag],
-			   Jet_mass[itag]);
-	  p4p.SetPtEtaPhiM(Jet_pt[iprobe], Jet_eta[iprobe], Jet_phi[iprobe],
-			   Jet_mass[iprobe]);
+        multijetHistos *h = mhmj[trg];
 
-	  // Dijet observables
-	  double eta = p4p.Eta();
-	  double pttag = p4t.Pt();
-	  double ptprobe = p4p.Pt();
-	  double ptave = 0.5*(pttag+ptprobe);
-	  double asymm = (ptprobe - pttag) / ptave;
+        h->hpta_all->Fill(ptavp3, w);
+        h->hptm_all->Fill(ptave, w);
+        h->hptl_all->Fill(ptlead, w);
+        h->hptr_all->Fill(ptrecoil, w);
 
-	  double dphi = DELTAPHI(p4t.Phi(),p4p.Phi());
-	  double dr = p4t.DeltaR(p4p);
+        if (ptavp3 >= h->ptmin && ptavp3 < h->ptmax)
+          h->hpta_sel->Fill(ptavp3, w);
+        if (ptave >= h->ptmin && ptave < h->ptmax) h->hptm_sel->Fill(ptave, w);
+        if (ptlead >= h->ptmin && ptlead < h->ptmax)
+          h->hptl_sel->Fill(ptlead, w);
+        if (ptrecoil >= h->ptmin && ptrecoil < h->ptmax)
+          h->hptr_sel->Fill(ptrecoil, w);
 
-	  // Proper bisector axis (equal angles to each jet)
-	  p4b.SetPtEtaPhiM(0,0,0,0);
-	  p4bt.SetPtEtaPhiM(1,0,p4t.Phi(),0);
-	  p4bp.SetPtEtaPhiM(1,0,p4p.Phi(),0);
-	  p4b += p4bt;
-	  p4b -= p4bp;
-	  p4b.SetPtEtaPhiM(p4b.Pt(),0.,p4b.Phi(),0.);
-	  p4b *= 1./p4b.Pt();
-	  p4bx.SetPtEtaPhiM(p4b.Pt(),0.,p4b.Phi()+0.5*TMath::Pi(),0.);
+        double res =
+            (p4leadRES.Pt() / p4recoilRES.Pt()) / (p4lead.Pt() / p4recoil.Pt());
+        h->presa->Fill(ptavp3, res, w);
+        h->presm->Fill(ptave, res, w);
+        h->presl->Fill(ptlead, res, w);
+        h->presr->Fill(ptrecoil, res, w);
 
-	  // Average projection pT to bisector axis, pT,avp
-	  // as explained in JME-21-001 (HDM method: bisector extension)
-	  double ptavp2 = 0.5*(p4t.Vect().Dot(p4b.Vect()) -
-			       p4p.Vect().Dot(p4b.Vect()));
-	  
-	  double m0b = 1 + (p4m0.Vect().Dot(p4b.Vect()))/ptavp2;
-	  double m2b = 1 + (p4m2.Vect().Dot(p4b.Vect()))/ptavp2;
-	  double mnb = 0 + (p4mn.Vect().Dot(p4b.Vect()))/ptavp2;
-	  double mub = 0 + (p4mu.Vect().Dot(p4b.Vect()))/ptavp2;
-	  //double mob = 0 + (p4mo.Vect().Dot(p4b.Vect()))/ptavp;
+        h->ptleada->Fill(ptavp3, ptlead, w);
+        h->ptleadm->Fill(ptave, ptlead, w);
+        h->ptleadl->Fill(ptlead, ptlead, w);
+        h->ptleadr->Fill(ptrecoil, ptlead, w);
 
-	  double m0bx = 1 + (p4m0.Vect().Dot(p4bx.Vect()))/ptavp2;
-	  double m2bx = 1 + (p4m2.Vect().Dot(p4bx.Vect()))/ptavp2;
+        h->pcrecoila->Fill(ptavp3, Crecoil, w);
+        h->pcrecoilm->Fill(ptave, Crecoil, w);
+        h->pcrecoill->Fill(ptlead, Crecoil, w);
+        h->pcrecoilr->Fill(ptrecoil, Crecoil, w);
 
-	  // Extras
-	  double cu = 1./0.92;
-	  double mnub = 0 + ((p4mn+cu*p4mu).Vect().Dot(p4b.Vect()))/ptavp2;
-	  double mnbx = 0 + (p4mn.Vect().Dot(p4bx.Vect()))/ptavp2;
-	  double mubx = 0 + (p4mu.Vect().Dot(p4bx.Vect()))/ptavp2;
-	  double mnubx = 0 + ((p4mn+cu*p4mu).Vect().Dot(p4bx.Vect()))/ptavp2;
-	  
-	  // bisector axis => dijet axis really (not equal angles)
-	  p4d.SetPtEtaPhiM(0,0,0,0);
-	  p4d += p4t;
-	  p4d -= p4p;
-	  p4d.SetPtEtaPhiM(p4d.Pt(),0.,p4d.Phi(),0.);
-	  p4d *= 1./p4d.Pt();
-	  p4dx.SetPtEtaPhiM(p4d.Pt(),0.,p4d.Phi()+0.5*TMath::Pi(),0.);
+        h->pm0a->Fill(ptavp3, m0b, w);
+        h->pm2a->Fill(ptavp3, m3b, w);
+        h->pmna->Fill(ptavp3, mnb, w);
+        h->pmua->Fill(ptavp3, mub, w);
 
-	  double m0d = 1 + (p4m0.Vect().Dot(p4d.Vect()))/ptave;
-	  double m2d = 1 + (p4m2.Vect().Dot(p4d.Vect()))/ptave;
-	  double mnd = 0 + (p4mn.Vect().Dot(p4d.Vect()))/ptave;
-	  double mud = 0 + (p4mu.Vect().Dot(p4d.Vect()))/ptave;
-	  //double mod = 0 + (p4mo.Vect().Dot(p4d.Vect()))/ptave;
+        h->pm0m->Fill(ptave, m0m, w);
+        h->pm2m->Fill(ptave, m3m, w);
+        h->pmnm->Fill(ptave, mnm, w);
+        h->pmum->Fill(ptave, mum, w);
 
-	  double m0dx = 1 + (p4m0.Vect().Dot(p4dx.Vect()))/ptave;
-	  double m2dx = 1 + (p4m2.Vect().Dot(p4dx.Vect()))/ptave;
+        h->pm0l->Fill(ptlead, m0l, w);
+        h->pm2l->Fill(ptlead, m3l, w);
+        h->pmnl->Fill(ptlead, mnl, w);
+        h->pmul->Fill(ptlead, mul, w);
 
-	  // central axis + pttag norm&binning
-	  p4c.SetPtEtaPhiM(0,0,0,0);
-	  p4c += p4t;
-	  p4c.SetPtEtaPhiM(p4c.Pt(),0.,p4c.Phi(),0.);
-	  p4c *= 1./p4c.Pt();
-	  p4cx.SetPtEtaPhiM(p4c.Pt(),0.,p4c.Phi()+0.5*TMath::Pi(),0.);
+        h->pm0r->Fill(ptrecoil, m0r, w);
+        h->pm2r->Fill(ptrecoil, m3r, w);
+        h->pmnr->Fill(ptrecoil, mnr, w);
+        h->pmur->Fill(ptrecoil, mur, w);
 
-	  double m0c = 1 + (p4m0.Vect().Dot(p4c.Vect()))/pttag;
-	  double m2c = 1 + (p4m2.Vect().Dot(p4c.Vect()))/pttag;
-	  double mnc = 0 + (p4mn.Vect().Dot(p4c.Vect()))/pttag;
-	  double muc = 0 + (p4mu.Vect().Dot(p4c.Vect()))/pttag;
-	  //double moc = 0 + (p4mo.Vect().Dot(p4c.Vect()))/pttag;
+        if (doMultijetControl) {
+          h->h2m0a->Fill(ptavp3, m0b, w);
+          h->h2m2a->Fill(ptavp3, m3b, w);
+          if (ptave > 1.25 * h->trgpt)
+            h->hcosdphi->Fill(cos(DELTAPHI(p4lead.Phi(), p4recoil.Phi())), w);
+        }
 
-	  double m0cx = 1 + (p4m0.Vect().Dot(p4cx.Vect()))/pttag;
-	  double m2cx = 1 + (p4m2.Vect().Dot(p4cx.Vect()))/pttag;
+        if (doPFComposition) {
+          h->ppt13->Fill(ptavp3, Jet_pt[0], w);
+          h->prho13->Fill(ptavp3, rho, w);
+          h->pchf13->Fill(ptavp3, Jet_chHEF[0], w);
+          h->pnhf13->Fill(ptavp3, Jet_neHEF[0], w);
+          h->pnef13->Fill(ptavp3, Jet_neEmEF[0], w);
+          h->pcef13->Fill(ptavp3, Jet_chEmEF[0], w);
+          h->pmuf13->Fill(ptavp3, Jet_muEF[0], w);
+        }  // doPFcomposition
 
-	  // forward axis ("backwards" to tag hemisphere) + ptprobe norm&binning
-	  p4f.SetPtEtaPhiM(0,0,0,0);
-	  p4f -= p4p;
-	  p4f.SetPtEtaPhiM(p4f.Pt(),0.,p4f.Phi(),0.);
-	  p4f *= 1./p4f.Pt();
-	  p4fx.SetPtEtaPhiM(p4f.Pt(),0.,p4f.Phi()+0.5*TMath::Pi(),0.);
+      }  // for itrg
+    }    // ismultijet
 
-	  double m0f = 1 + (p4m0.Vect().Dot(p4f.Vect()))/ptprobe;
-	  double m2f = 1 + (p4m2.Vect().Dot(p4f.Vect()))/ptprobe;
-	  double mnf = 0 + (p4mn.Vect().Dot(p4f.Vect()))/ptprobe;
-	  double muf = 0 + (p4mu.Vect().Dot(p4f.Vect()))/ptprobe;
-	  //double mof = 0 + (p4mo.Vect().Dot(p4f.Vect()))/ptprobe;
+    h2mhtvsmet->Fill(p4t1met.Pt(), p4mht.Pt(), w);
+  }  // for jentry
+  cout << endl << flush;
 
-	  double m0fx = 1 + (p4m0.Vect().Dot(p4fx.Vect()))/ptprobe;
-	  double m2fx = 1 + (p4m2.Vect().Dot(p4fx.Vect()))/ptprobe;
+  cout << "Finished looping over " << nevt << " of which " << _ngoodevts
+       << " passed trigger. Start writing file." << endl
+       << flush;
+  fout->Write();
+  fout->Close();
+  cout << "File written and closed." << endl << flush;
 
-	  // Dijet mass
-	  p4dj = p4t; p4dj += p4p;
-	  double mjj = p4dj.M();
-	  double deta = fabs(p4p.Eta()-p4t.Eta());
-	  
-	  bool isdijet = (fabs(p4t.Eta())<1.3 && dphi>2.7 &&
-			  fabs(asymm)<maxa && //!
-			  p4t.Pt()>15. && Jet_jetId[itag]>=4 &&
-			  p4p.Pt()>15. && Jet_jetId[iprobe]>=4 &&
-			  !Jet_jetveto[itag] && !Jet_jetveto[iprobe] && //!
-			  Flag_METFilters>0);
-	  // DESY selection. Note tighter asymmetry cut and allJetsGood
-	  bool isdijet2 = (fabs(p4t.Eta())<1.3 && dphi>2.7 &&
-			   fabs((pttag-ptprobe)/(pttag+ptprobe))<0.7 && //!
-			   //fabs(asymm)<maxa && //!
-			   p4t.Pt()>15. && Jet_jetId[itag]>=4 &&
-			   p4p.Pt()>15. && Jet_jetId[iprobe]>=4 &&
-			   //!Jet_jetveto[itag] && !Jet_jetveto[iprobe] && //!
-			   allJetsGood && //!
-			   Flag_METFilters>0);
+  if (doJSON)
+    cout << Form("Found %d bad events according to new JSON (events cut)",
+                 _nbadevts_json)
+         << endl;
+  if (doTrigger) {
+    cout << Form("Found %d bad events according to trigger bits (events cut)",
+                 _nbadevts_trg)
+         << endl;
+    cout << Form(
+                "Found %d bad events not in fwd trigger phase space (events "
+                "cut)",
+                _nbadevts_fwdtrg)
+         << endl;
+  }
 
-	  
-	  for (int itrg = 0; itrg != ntrg; ++itrg) {
-	    
-	    if (debugevent) cout << "Check trigger #"<<itrg<<" for dijet "
-				 << endl << flush;
-	    
-	    string &trg = vtrg[itrg];
-	    if (!(*mtrg[trg])) continue;
-
-	    if (doJetveto && isdijet) {
-
-	      jetvetoHistos *h = mhjv[trg];
-
-	      if (doJetvetoVariants)
-		h->h2ptaeta_all->Fill(eta, ptave, w);
-	      if (ptave >= h->ptmin && ptave < h->ptmax &&
-		  fabs(eta) >= h->absetamin && fabs(eta) < h->absetamax) {
-		if (doJetvetoVariants)
-		  h->h2ptaeta_sel->Fill(eta, ptave, w);
-		h->p2asymm->Fill(eta, p4p.Phi(), asymm, w);
-		h->h2phieta_ave->Fill(eta, p4p.Phi(), w);
-	      }
-	      
-	      if (doJetvetoVariants) {
-		if (doPFComposition && fabs(p4t.Eta())<1.3) {
-		  h->h2ptteta_all->Fill(eta, ptave, w);
-		  if (pttag >= h->ptmin && pttag < h->ptmax) {
-		    h->h2ptteta_sel->Fill(eta, pttag, w);
-		    h->h2phieta_tag->Fill(eta, p4.Phi(), w);
-		    h->p2chftp->Fill(eta, p4p.Phi(), Jet_chHEF[iprobe], w);
-		    h->p2nhftp->Fill(eta, p4p.Phi(), Jet_neHEF[iprobe], w);
-		    h->p2neftp->Fill(eta, p4p.Phi(), Jet_neEmEF[iprobe], w);
-		  }
-		}
-	      }
-	    } // doJetveto
-
-	    if (doDijet && isdijet) {
-
-	      dijetHistos *h = mhdj[trg];
-	      double res = Jet_RES[iprobe] / Jet_RES[itag];
-
-	      h->h2pteta_aball->Fill(eta, ptavp2, w);
-	      h->h2pteta_adall->Fill(eta, ptave, w);
-	      h->h2pteta_tcall->Fill(eta, pttag, w);
-	      h->h2pteta_pfall->Fill(eta, ptprobe, w);
-	      
-	      // Bisector (proper)
-	      if (ptavp2 >= h->ptmin && ptavp2 < h->ptmax &&
-		  fabs(eta) >= h->absetamin && fabs(eta) < h->absetamax) {
-		h->h2pteta_absel->Fill(eta, ptavp2, w);
-	      }
-	      { // Bisector (proper)
-		if (doDijetJER) {
-		  h->p2m0->Fill(eta, ptavp2, m0b, w);
-		  h->p2m0x->Fill(eta, ptavp2, m0bx, w);
-		  h->p2m2->Fill(eta, ptavp2, m2b, w);
-		  h->p2m2x->Fill(eta, ptavp2, m2bx, w);
-		}
-		if (doPFComposition) {
-		  h->p2pt->Fill(eta, ptavp2, Jet_pt[iprobe], w);
-		  h->p2rho->Fill(eta, ptavp2, rho, w);
-		  h->p2chf->Fill(eta, ptavp2, Jet_chHEF[iprobe], w);
-		  h->p2nhf->Fill(eta, ptavp2, Jet_neHEF[iprobe], w);
-		  h->p2nef->Fill(eta, ptavp2, Jet_neEmEF[iprobe], w);
-		  h->p2cef->Fill(eta, ptavp2, Jet_chEmEF[iprobe], w);
-		  h->p2muf->Fill(eta, ptavp2, Jet_muEF[iprobe], w);
-		  
-		  h->ppt13->Fill(ptavp2, Jet_pt[itag], w);
-		  h->prho13->Fill(ptavp2, rho, w);
-		  h->pchf13->Fill(ptavp2, Jet_chHEF[itag], w);
-		  h->pnhf13->Fill(ptavp2, Jet_neHEF[itag], w);
-		  h->pnef13->Fill(ptavp2, Jet_neEmEF[itag], w);
-		  h->pcef13->Fill(ptavp2, Jet_chEmEF[itag], w);
-		  h->pmuf13->Fill(ptavp2, Jet_muEF[itag], w);
-		}
-		
-		h->p2resab->Fill(eta, ptavp2, res, w);
-		h->p2m0ab->Fill(eta, ptavp2, m0b, w);
-		h->p2m2ab->Fill(eta, ptavp2, m2b, w);
-		h->p2mnab->Fill(eta, ptavp2, mnb, w);
-		h->p2muab->Fill(eta, ptavp2, mub, w);
-	      }
-	      // Dijet axis
-	      if (ptave >= h->ptmin && ptave < h->ptmax &&
-		  fabs(eta) >= h->absetamin && fabs(eta) < h->absetamax) {
-		h->h2pteta_adsel->Fill(eta, ptave, w);
-	      }
-	      { // Dijet axis
-		h->p2resad->Fill(eta, ptave, res, w);
-		h->p2m0ad->Fill(eta, ptave, m0d, w);
-		h->p2m2ad->Fill(eta, ptave, m2d, w);
-		h->p2mnad->Fill(eta, ptave, mnd, w);
-		h->p2muad->Fill(eta, ptave, mud, w);
-	      }
-	      // Tag jet axis
-	      if (pttag >= h->ptmin && pttag < h->ptmax) {
-		h->h2pteta_tcsel->Fill(eta, pttag, w);
-	      }
-	      // Tag jet axis
-	      {
-		h->p2restc->Fill(eta, pttag, res, w);
-		h->p2m0tc->Fill(eta, pttag, m0c, w);
-		h->p2m2tc->Fill(eta, pttag, m2c, w);
-		h->p2mntc->Fill(eta, pttag, mnc, w);
-		h->p2mutc->Fill(eta, pttag, muc, w);
-	      }
-	      // Probe jet axis
-	      if (ptprobe >= h->ptmin && ptprobe < h->ptmax) {
-		h->h2pteta_pfsel->Fill(eta, ptprobe, w);
-	      } 
-	      // Probe jet axis
-	      {
-		h->p2respf->Fill(eta, ptprobe, res, w);
-		h->p2m0pf->Fill(eta, ptprobe, m0f, w);
-		h->p2m2pf->Fill(eta, ptprobe, m2f, w);
-		h->p2mnpf->Fill(eta, ptprobe, mnf, w);
-		h->p2mupf->Fill(eta, ptprobe, muf, w);
-	      }
-	    } // doDijet
-
-	    if (doDijet2 && isdijet2) {
-
-	      dijetHistos2 *h = mhdj2[trg];
-	      double res = Jet_RES[iprobe] / Jet_RES[itag];
-	      double jsf = (smearJets && Jet_CF[itag]>0 ?
-			    Jet_CF[iprobe] / Jet_CF[itag] : 1);
-		
-	      double abseta = fabs(eta);
-	      h->h2pteta->Fill(abseta, ptavp2, w);
-	      
-	      h->p2res->Fill(abseta, ptavp2, res, w);
-	      h->p2jsf->Fill(abseta, ptavp2, jsf, w);
-	      h->p2m0->Fill(abseta, ptavp2, m0b, w);
-	      h->p2m2->Fill(abseta, ptavp2, m2b, w);
-	      h->p2mn->Fill(abseta, ptavp2, mnb, w);
-	      h->p2mu->Fill(abseta, ptavp2, mub, w);
-	      
-	      h->p2m0x->Fill(abseta, ptavp2, m0bx, w);
-	      h->p2m2x->Fill(abseta, ptavp2, m2bx, w);
-
-	      // Extras for FSR studies
-	      h->p2mnu->Fill(abseta, ptavp2, mnub, w);
-	      h->p2mnx->Fill(abseta, ptavp2, mnbx, w);
-	      h->p2mux->Fill(abseta, ptavp2, mubx, w);
-	      h->p2mnux->Fill(abseta, ptavp2, mnubx, w);
-
-	      h->h2ptetatc->Fill(abseta, pttag, w);
-	      h->p2restc->Fill(abseta, pttag, res, w);
-	      h->p2jsftc->Fill(abseta, pttag, jsf, w);
-	      h->p2m0tc->Fill(abseta, pttag, m0c, w);
-	      h->p2m2tc->Fill(abseta, pttag, m2c, w);
-	      h->p2mntc->Fill(abseta, pttag, mnc, w);
-	      h->p2mutc->Fill(abseta, pttag, muc, w);
-
-	      h->h2ptetapf->Fill(abseta, ptprobe, w);
-	      h->p2respf->Fill(abseta, ptprobe, res, w);
-	      h->p2jsfpf->Fill(abseta, ptprobe, jsf, w);
-	      h->p2m0pf->Fill(abseta, ptprobe, m0f, w);
-	      h->p2m2pf->Fill(abseta, ptprobe, m2f, w);
-	      h->p2mnpf->Fill(abseta, ptprobe, mnf, w);
-	      h->p2mupf->Fill(abseta, ptprobe, muf, w);
-	    } // doDijet2
-	    
-	  } // for itrg
-
-	  // Dijet without deltaphi cut
-	  if (fabs(p4t.Eta()<1.3) && fabs(asymm)<maxa) {
-	    
-	    if (ptave>=40) {
-	      h2dphi->Fill(p4p.Eta(),dphi, w);
-	    }
-	  }
-	} // for itag
-      } // njet>=2
-
-      // Multijet selection
-      if (ismultijet && doMultijet) {
-
-	if (debugevent) cout << "Analyze multijet" << endl << flush;
-	  
-	// pTave binning
-	double ptlead = p4lead.Pt();
-	double ptrecoil = p4recoil.Pt();
-	double ptave = 0.5*(ptlead+ptrecoil);
-	// double ptavp3 defined earlier, as is p4b3
-
-	// Projection to transverse plane (is this necessary?)
-	p4m0.SetPtEtaPhiM(p4m0.Pt(),0.,p4m0.Phi(),0.);
-	p4m3.SetPtEtaPhiM(p4m3.Pt(),0.,p4m3.Phi(),0.);
-	p4mn3.SetPtEtaPhiM(p4mn3.Pt(),0.,p4mn3.Phi(),0.);
-
-	// Bisector axis p4b3 defined earlier (equal angles)	
-	double m0b = 1 + (p4m0.Vect().Dot(p4b3.Vect()))/ptave;
-	double m3b = 1 + (p4m3.Vect().Dot(p4b3.Vect()))/ptave;
-	double mnb = 0 + (p4mn3.Vect().Dot(p4b3.Vect()))/ptave;
-	double mub = 0 + (p4mu3.Vect().Dot(p4b3.Vect()))/ptave;
-
-	// Dijet axis (not equal angles)
-	p4m.SetPtEtaPhiM(0,0,0,0);
-	p4m -= p4lead;
-	p4m += p4recoil;
-	p4m.SetPtEtaPhiM(p4m.Pt(),0.,p4m.Phi(),0.);
-	p4m *= 1./p4m.Pt();
-
-	double m0m = 1 + (p4m0.Vect().Dot(p4m.Vect()))/ptave;
-	double m3m = 1 + (p4m3.Vect().Dot(p4m.Vect()))/ptave;
-	double mnm = 0 + (p4mn3.Vect().Dot(p4m.Vect()))/ptave;
-	double mum = 0 + (p4mu3.Vect().Dot(p4m.Vect()))/ptave;
-
-	p4l.SetPtEtaPhiM(0,0,0,0);
-	p4l -= p4lead;
-	p4l.SetPtEtaPhiM(p4l.Pt(),0.,p4l.Phi(),0.);
-	p4l *= 1./p4l.Pt();
-
-	double m0l = 1 + (p4m0.Vect().Dot(p4l.Vect()))/ptlead;
-	double m3l = 1 + (p4m3.Vect().Dot(p4l.Vect()))/ptlead;
-	double mnl = 0 + (p4mn3.Vect().Dot(p4l.Vect()))/ptlead;
-	double mul = 0 + (p4mu3.Vect().Dot(p4l.Vect()))/ptlead;
-
-	p4r.SetPtEtaPhiM(0,0,0,0);
-	p4r += p4recoil;
-	p4r.SetPtEtaPhiM(p4r.Pt(),0.,p4r.Phi(),0.);
-	p4r *= 1./p4r.Pt();
-	
-	double m0r = 1 + (p4m0.Vect().Dot(p4r.Vect()))/ptrecoil;
-	double m3r = 1 + (p4m3.Vect().Dot(p4r.Vect()))/ptrecoil;
-	double mnr = 0 + (p4mn3.Vect().Dot(p4r.Vect()))/ptrecoil;
-	double mur = 0 + (p4mu3.Vect().Dot(p4r.Vect()))/ptrecoil;
-
-	for (int itrg = 0; itrg != ntrg; ++itrg) {
-	  
-	  string &trg = vtrg[itrg];
-	  if (!(*mtrg[trg])) continue;
-
-	  multijetHistos *h = mhmj[trg];
-	  
-	  h->hpta_all->Fill(ptavp3, w);
-	  h->hptm_all->Fill(ptave, w);
-	  h->hptl_all->Fill(ptlead, w);
-	  h->hptr_all->Fill(ptrecoil, w);
-	  
-	  if (ptavp3 >= h->ptmin && ptavp3 < h->ptmax)
-	    h->hpta_sel->Fill(ptavp3, w);
-	  if (ptave >= h->ptmin && ptave < h->ptmax)
-	    h->hptm_sel->Fill(ptave, w);
-	  if (ptlead >= h->ptmin && ptlead < h->ptmax)
-	    h->hptl_sel->Fill(ptlead, w);
-	  if (ptrecoil >= h->ptmin && ptrecoil < h->ptmax)
-	    h->hptr_sel->Fill(ptrecoil, w);
-	    
-	  double res = (p4leadRES.Pt()/p4recoilRES.Pt()) /
-	    (p4lead.Pt()/p4recoil.Pt());
-	  h->presa->Fill(ptavp3, res, w);
-	  h->presm->Fill(ptave, res, w);
-	  h->presl->Fill(ptlead, res, w);
-	  h->presr->Fill(ptrecoil, res, w);
-
-	  h->ptleada->Fill(ptavp3, ptlead, w);
-	  h->ptleadm->Fill(ptave, ptlead, w);
-	  h->ptleadl->Fill(ptlead, ptlead, w);
-	  h->ptleadr->Fill(ptrecoil, ptlead, w);
-	  
-	  h->pcrecoila->Fill(ptavp3, Crecoil, w);
-	  h->pcrecoilm->Fill(ptave, Crecoil, w);
-	  h->pcrecoill->Fill(ptlead, Crecoil, w);
-	  h->pcrecoilr->Fill(ptrecoil, Crecoil, w);
-
-	  h->pm0a->Fill(ptavp3, m0b, w);
-	  h->pm2a->Fill(ptavp3, m3b, w);
-	  h->pmna->Fill(ptavp3, mnb, w);
-	  h->pmua->Fill(ptavp3, mub, w);
-
-	  h->pm0m->Fill(ptave, m0m, w);
-	  h->pm2m->Fill(ptave, m3m, w);
-	  h->pmnm->Fill(ptave, mnm, w);
-	  h->pmum->Fill(ptave, mum, w);
-
-	  h->pm0l->Fill(ptlead, m0l, w);
-	  h->pm2l->Fill(ptlead, m3l, w);
-	  h->pmnl->Fill(ptlead, mnl, w);
-	  h->pmul->Fill(ptlead, mul, w);
-
-	  h->pm0r->Fill(ptrecoil, m0r, w);
-	  h->pm2r->Fill(ptrecoil, m3r, w);
-	  h->pmnr->Fill(ptrecoil, mnr, w);
-	  h->pmur->Fill(ptrecoil, mur, w);
-
-	  if (doMultijetControl) {
-	    h->h2m0a->Fill(ptavp3, m0b, w);
-	    h->h2m2a->Fill(ptavp3, m3b, w);
-	    if (ptave>1.25*h->trgpt)
-	      h->hcosdphi->Fill(cos(DELTAPHI(p4lead.Phi(),p4recoil.Phi())), w);
-	  }
-
-	  if (doPFComposition) {
-	    h->ppt13->Fill(ptavp3, Jet_pt[0], w);
-	    h->prho13->Fill(ptavp3, rho, w);
-	    h->pchf13->Fill(ptavp3, Jet_chHEF[0], w);
-	    h->pnhf13->Fill(ptavp3, Jet_neHEF[0], w);
-	    h->pnef13->Fill(ptavp3, Jet_neEmEF[0], w);
-	    h->pcef13->Fill(ptavp3, Jet_chEmEF[0], w);
-	    h->pmuf13->Fill(ptavp3, Jet_muEF[0], w);
-	  } // doPFcomposition
-			
-	} // for itrg
-      } // ismultijet
-      
-      h2mhtvsmet->Fill(p4t1met.Pt(), p4mht.Pt(), w);
-   } // for jentry
-   cout << endl << flush;
-
-
-   cout << "Finished looping over " << nevt << " of which " << _ngoodevts
-	<< " passed trigger. Start writing file." << endl << flush;
-   fout->Write();
-   fout->Close();
-   cout << "File written and closed." << endl << flush;
-
-   if (doJSON)
-     cout << Form("Found %d bad events according to new JSON (events cut)",_nbadevts_json) << endl;
-   if (doTrigger) {
-     cout << Form("Found %d bad events according to trigger bits (events cut)",_nbadevts_trg) << endl;
-     cout << Form("Found %d bad events not in fwd trigger phase space (events cut)",_nbadevts_fwdtrg) << endl;
-   }
-
-  cout << "Processed " << nrun << " runs, "
-       << nls << " luminosity blocks and " << nevt << " events" << endl;
+  cout << "Processed " << nrun << " runs, " << nls << " luminosity blocks and "
+       << nevt << " events" << endl;
   cout << "Saving these to file rootfiles/jmenano.json for brilcalc" << endl;
 
-  ofstream fjson(Form("rootfiles/jmenano_%s_%s.json",
-		      dataset.c_str(),version.c_str()));
-   fjson << "{" << endl;
-   for (map<int, map<int,int> >::iterator it = mrunls.begin();
-	it != mrunls.end(); ++it) {
+  ofstream fjson(
+      Form("rootfiles/jmenano_%s_%s.json", dataset.c_str(), version.c_str()));
+  fjson << "{" << endl;
+  for (map<int, map<int, int> >::iterator it = mrunls.begin();
+       it != mrunls.end(); ++it) {
+    int run = it->first;
+    int ls_prev(0), ls(0), ok(0);
+    bool firstblock(true), newblock(true);
 
-     int run = it->first;
-     int ls_prev(0), ls(0), ok(0);
-     bool firstblock(true), newblock(true);
+    if (it != mrunls.begin()) fjson << "," << endl;
+    fjson << "  \"" << run << "\": [";
+    for (map<int, int>::iterator jt = it->second.begin();
+         jt != it->second.end(); ++jt) {
+      ok = jt->second;
+      if (ok) {
+        ls_prev = ls;
+        ls = jt->first;
+      } else
+        continue;
 
-     if (it!=mrunls.begin()) fjson << "," << endl;
-     fjson << "  \"" << run << "\": [";
-     for (map<int,int>::iterator jt = it->second.begin();
-	  jt != it->second.end(); ++jt) {
+      newblock = (firstblock || (ls - ls_prev > 1));
+      if (newblock && ok) {
+        if (firstblock) {
+          fjson << "[" << ls << ", ";
+          firstblock = false;
+        } else {
+          fjson << ls_prev << "], [" << ls << ", ";
+        }
+      }
+    }  // for jt
+    fjson << ls << "]]";
+  }  // for it
+  fjson << "}" << endl;
 
-       ok = jt->second;
-       if (ok) {
-	 ls_prev = ls;
-	 ls = jt->first;
-       }
-       else
-	 continue;
+  cout << Form("Analyzed %d events", _ngoodevts) << endl;
+  cout << "Saving these to " << fout->GetName() << " for drawJMENANO.C" << endl;
 
-       newblock = (firstblock || (ls - ls_prev > 1));
-       if (newblock && ok) {
-	 if (firstblock) {
-	   fjson << "[" << ls << ", ";
-	   firstblock = false;
-	 }
-	 else {
-	   fjson << ls_prev << "], [" << ls << ", ";
-	 }
-       }
-     } // for jt
-     fjson << ls << "]]";
-   } // for it
-   fjson << "}" << endl;
-   
-   cout << Form("Analyzed %d events",_ngoodevts) << endl;
-   cout << "Saving these to " << fout->GetName() << " for drawJMENANO.C" << endl;
-
-   //memory deallocation
-   //h2mhtvsmet->Draw("COLZ");
+  // memory deallocation
+  // h2mhtvsmet->Draw("COLZ");
 }  // Loop()
 
-bool DijetHistosFill::LoadJSON()
-{
+bool DijetHistosFill::LoadJSON() {
   // Get the JSON files from here:
   // - /eos/user/c/cmsdqm/www/CAF/certification/Collisions22/
-  
+
   // Golden 1.44/fb
   // string json = "rootfiles/Cert_Collisions2022_355100_356615_Golden.json";
   // Golden JSON, 4.86/fb
-  //string json = "rootfiles/Cert_Collisions2022_355100_357550_Golden..json";
+  // string json = "rootfiles/Cert_Collisions2022_355100_357550_Golden..json";
   // Golden JSON, 7.67/fb
-  //string json = "rootfiles/Cert_Collisions2022_355100_357900_Golden.json";
+  // string json = "rootfiles/Cert_Collisions2022_355100_357900_Golden.json";
   // Golden JSON BCDEF, 9.71/fb
-  //string json = "rootfiles/Cert_Collisions2022_355100_359812_Golden.json";
+  // string json = "rootfiles/Cert_Collisions2022_355100_359812_Golden.json";
   // Golden JSON BCDEF, 14.6/fb
-    string json = "rootfiles/Cert_Collisions2022_355100_360491_Golden.json";
-// Golden JSON RunB, 0.0846/fb
-//string json = "rootfiles/Cert_Collisions2022_eraB_355100_355769_Golden.json";
-// Golden JSON RunC, 4.84/fb
-//string json = "rootfiles/Cert_Collisions2022_eraC_355862_357482_Golden.json"
-// Golden JSON RunD, 2.74/fb
-//string json = "rootfiles/Cert_Collisions2022_eraD_357538_357900_Golden.json";
-    if (isRun2==1 || isRun2==2)
-      json="rootfiles/Cert_271036-284044_13TeV_Legacy2016_Collisions16_JSON.txt";
-    if (isRun2==3)
-      json="rootfiles/Cert_294927-306462_13TeV_UL2017_Collisions17_GoldenJSON.txt";
-    if (isRun2==4)
-    json="rootfiles/Cert_314472-325175_13TeV_Legacy2018_Collisions18_JSON.txt";
-  
+  string json = "rootfiles/Cert_Collisions2022_355100_360491_Golden.json";
+  // Golden JSON RunB, 0.0846/fb
+  // string json =
+  // "rootfiles/Cert_Collisions2022_eraB_355100_355769_Golden.json";
+  // Golden JSON RunC, 4.84/fb
+  // string json =
+  // "rootfiles/Cert_Collisions2022_eraC_355862_357482_Golden.json"
+  // Golden JSON RunD, 2.74/fb
+  // string json =
+  // "rootfiles/Cert_Collisions2022_eraD_357538_357900_Golden.json";
+  if (isRun2 == 1 || isRun2 == 2)
+    json =
+        "rootfiles/Cert_271036-284044_13TeV_Legacy2016_Collisions16_JSON.txt";
+  if (isRun2 == 3)
+    json =
+        "rootfiles/Cert_294927-306462_13TeV_UL2017_Collisions17_GoldenJSON.txt";
+  if (isRun2 == 4)
+    json =
+        "rootfiles/Cert_314472-325175_13TeV_Legacy2018_Collisions18_JSON.txt";
+
   cout << "Processing LoadJSON() with " + json + " ..." << flush;
   ifstream file(json, ios::in);
   if (!file.is_open()) return false;
@@ -2661,37 +2800,51 @@ bool DijetHistosFill::LoadJSON()
   char s1[256];
   int rn(0), ls1(0), ls2(0), nrun(0), nls(0);
   file.get(c);
-  if (c!='{') return false;
-  while (file >> s and sscanf(s.c_str(),"\"%d\":",&rn)==1) {
-    if (debug) cout << Form("\"%d\": ",rn);
-    
-    while (file.get(c) and c==' ') {};
-    if (debug) { cout << Form("%c",c) << flush; assert(c=='['); }
+  if (c != '{') return false;
+  while (file >> s and sscanf(s.c_str(), "\"%d\":", &rn) == 1) {
+    if (debug) cout << Form("\"%d\": ", rn);
+
+    while (file.get(c) and c == ' ') {
+    };
+    if (debug) {
+      cout << Form("%c", c) << flush;
+      assert(c == '[');
+    }
     ++nrun;
 
     bool endrun = false;
-    while (!endrun and file >> s >> s2 and sscanf((s+s2).c_str(),"[%d,%d]%s",&ls1,&ls2,s1)==3) {
-      if (debug) cout << Form("[%d,%d,%s]",ls1,ls2,s1);
+    while (!endrun and file >> s >> s2 and
+           sscanf((s + s2).c_str(), "[%d,%d]%s", &ls1, &ls2, s1) == 3) {
+      if (debug) cout << Form("[%d,%d,%s]", ls1, ls2, s1);
 
-      for (int ls = ls1; ls != ls2+1; ++ls) {
+      for (int ls = ls1; ls != ls2 + 1; ++ls) {
         _json[rn][ls] = 1;
         ++nls;
       }
 
       s2 = s1;
-      endrun = (s2=="]," || s2=="]}");
-      if (debug and !endrun and s2!=",") { cout << string("s1: ")+s2 << endl << flush; assert(s2==","); }
-    } // while ls
+      endrun = (s2 == "]," || s2 == "]}");
+      if (debug and !endrun and s2 != ",") {
+        cout << string("s1: ") + s2 << endl << flush;
+        assert(s2 == ",");
+      }
+    }  // while ls
     if (debug) cout << endl;
 
-    if (s2=="]}") continue;
-    else if (debug and s2!="],") cout << string("s2: ")+s2 << endl << flush;
-    assert(s2=="],");
-  } // while run
-  //if (s2!="]}") { PrintInfo(string("s3: ")+s2,true); return false; }
-  if (s2!="]}") { cout <<  string("s3: ")+s2 << endl; return false; }
+    if (s2 == "]}")
+      continue;
+    else if (debug and s2 != "],")
+      cout << string("s2: ") + s2 << endl << flush;
+    assert(s2 == "],");
+  }  // while run
+  // if (s2!="]}") { PrintInfo(string("s3: ")+s2,true); return false; }
+  if (s2 != "]}") {
+    cout << string("s3: ") + s2 << endl;
+    return false;
+  }
 
   cout << string("\nCalled LoadJSON() with ") + json + ":" << endl;
-  cout << Form("Loaded %d good runs and %d good lumi sections",nrun,nls) << endl;
+  cout << Form("Loaded %d good runs and %d good lumi sections", nrun, nls)
+       << endl;
   return true;
-} // LoadJSON
+}  // LoadJSON
