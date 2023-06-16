@@ -3918,8 +3918,8 @@ public :
                         string &jerpathsf);
    virtual void initjer(JME::JetResolution *&jer,
                         JME::JetResolutionScaleFactor *&jersf,
-                        FactorizedJetCorrector *jersfvspt, string jerpath,
-                        string jerpathsf);
+                        FactorizedJetCorrector *&jersfvspt, string& jerpath,
+                        string& jerpathsf);
    virtual void inithist(
        vector<string> &vtrg, int itrg, TFile *&fout, TDirectory *&dout,
        int trgpt, int nxd, const double vxd[], double nptd, const double vptd[],

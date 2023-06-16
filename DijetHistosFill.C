@@ -2049,8 +2049,8 @@ void DijetHistosFill::initjec(FactorizedJetCorrector *&jec,
 // @return void
 void DijetHistosFill::initjer(JME::JetResolution *&jer,
                               JME::JetResolutionScaleFactor *&jersf,
-                              FactorizedJetCorrector *jersfvspt, string jerpath,
-                              string jerpathsf) {
+                              FactorizedJetCorrector  *& jersfvspt, string& jerpath,
+                              string& jerpathsf) {
   if (isMC && smearJets) {
     cout << jerpath << endl << flush;
     if (!useJERSFvsPt) cout << jerpathsf << endl << flush;
