@@ -6,7 +6,7 @@
 #include "TGraphErrors.h"
 #include "TGraphAsymmErrors.h"
 
-#include "../jecsys2020/tdrstyle_mod15.C"
+#include "tdrstyle_mod15.C"
 
 TH1D *getJER(TProfile2D* p2, TProfile2D *p2x,
 	     double eta1, double eta2, TH1D **h1 = 0, TH1D **h1x = 0);
@@ -39,32 +39,32 @@ void DijetHistosJER() {
   //drawDijetHistosJERtest();
 
 
-  DijetHistosJERs("haddfiles/jmenano_data_cmb_UL2016APV_v26c.root","Dijet2");
+  //DijetHistosJERs("haddfiles/jmenano_data_cmb_UL2016APV_v26c.root","Dijet2");
   DijetHistosJERs("rootfiles/jmenano_mc_cmb_UL2016APVMG_v26.root","Dijet2");
-  DijetHistosJERs("haddfiles/jmenano_data_cmb_UL2016GH_v26c.root","Dijet2");
+  //DijetHistosJERs("haddfiles/jmenano_data_cmb_UL2016GH_v26c.root","Dijet2");
   DijetHistosJERs("rootfiles/jmenano_mc_cmb_UL2016MG_v26.root","Dijet2");
-  DijetHistosJERs("haddfiles/jmenano_data_cmb_UL2017_v26.root","Dijet2");
+  //DijetHistosJERs("haddfiles/jmenano_data_cmb_UL2017_v26.root","Dijet2");
   DijetHistosJERs("rootfiles/jmenano_mc_cmb_UL2017MG_v26.root","Dijet2");
-  DijetHistosJERs("haddfiles/jmenano_data_cmb_UL2018_v26c.root","Dijet2");
+  //DijetHistosJERs("haddfiles/jmenano_data_cmb_UL2018_v26c.root","Dijet2");
   DijetHistosJERs("rootfiles/jmenano_mc_cmb_UL2018MG_v26.root","Dijet2");
-  DijetHistosJERs("haddfiles/jmenano_data_cmb_Run2_v26c.root","Dijet2");
-  DijetHistosJERs("haddfiles/jmenano_mc_cmb_Run2_v26.root","Dijet2");
+  //DijetHistosJERs("haddfiles/jmenano_data_cmb_Run2_v26c.root","Dijet2");
+  //DijetHistosJERs("haddfiles/jmenano_mc_cmb_Run2_v26.root","Dijet2");
 
-  drawDijetHistosJER("haddfiles/jmenano_data_cmb_UL2016APV_v26c.root",
-  		     "rootfiles/jmenano_mc_cmb_UL2016APVMG_v26.root",
-  		     "UL2016APV_ZB_v26c");
-  drawDijetHistosJER("haddfiles/jmenano_data_cmb_UL2016GH_v26c.root",
-  		     "rootfiles/jmenano_mc_cmb_UL2016MG_v26.root",
-  		     "UL2016GH_ZB_v26c");
-  drawDijetHistosJER("haddfiles/jmenano_data_cmb_UL2017_v26.root",
-  		     "rootfiles/jmenano_mc_cmb_UL2017MG_v26.root",
-  		     "UL2017_ZB_v26c");
-  drawDijetHistosJER("haddfiles/jmenano_data_cmb_UL2018_v26c.root",
-  		     "rootfiles/jmenano_mc_cmb_UL2018MG_v26.root",
-  		     "UL2018_ZB_v26c");
-  drawDijetHistosJER("haddfiles/jmenano_data_cmb_Run2_v26c.root",
-  		     "haddfiles/jmenano_mc_cmb_Run2_v26.root",
-  		     "Run2_ZB_v26c");
+  // drawDijetHistosJER("haddfiles/jmenano_data_cmb_UL2016APV_v26c.root",
+  // 		     "rootfiles/jmenano_mc_cmb_UL2016APVMG_v26.root",
+  // 		     "UL2016APV_ZB_v26c");
+  // drawDijetHistosJER("haddfiles/jmenano_data_cmb_UL2016GH_v26c.root",
+  // 		     "rootfiles/jmenano_mc_cmb_UL2016MG_v26.root",
+  // 		     "UL2016GH_ZB_v26c");
+  // drawDijetHistosJER("haddfiles/jmenano_data_cmb_UL2017_v26.root",
+  // 		     "rootfiles/jmenano_mc_cmb_UL2017MG_v26.root",
+  // 		     "UL2017_ZB_v26c");
+  // drawDijetHistosJER("haddfiles/jmenano_data_cmb_UL2018_v26c.root",
+  // 		     "rootfiles/jmenano_mc_cmb_UL2018MG_v26.root",
+  // 		     "UL2018_ZB_v26c");
+  // drawDijetHistosJER("haddfiles/jmenano_data_cmb_Run2_v26c.root",
+  // 		     "haddfiles/jmenano_mc_cmb_Run2_v26.root",
+  // 		     "Run2_ZB_v26c");
 
 }
 

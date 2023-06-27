@@ -57,24 +57,26 @@ void mk_DijetHistosFill(string dataset = "X", string version = "vX") {
   // Get JMENANO from either location:
   // - lxplus:/eos/cms/store/group/phys_jetmet/JMENanoRun3/v2p1/JetMET
   // - Hefaistos:/media/DATA/JME_NANO_DATA
-  
-  if (!(dataset=="UL2016BCD" || dataset=="UL2016EF" || 
-	dataset=="UL2016APVMG" ||
-        dataset=="UL2016GH" || dataset=="UL2016MG" || dataset=="UL2016Flat" || 
-	dataset=="UL2017B" || dataset=="UL2017C" || dataset=="UL2017D" ||
-	dataset=="UL2017E" || dataset=="UL2017F" ||
-	dataset=="UL2017MG" ||
-	dataset=="UL2018A" || dataset=="UL2018B" || dataset=="UL2018C" ||
-	//dataset=="UL2018D" ||
-	dataset=="UL2018D1" || dataset=="UL2018D2" ||
-	dataset=="UL2018MG" ||
 
-	dataset=="UL2016BCD_ZB" || dataset=="UL2016EF_ZB" || dataset=="UL2016GH_ZB" ||
-	dataset=="UL2017B_ZB" || dataset=="UL2017C_ZB" || dataset=="UL2017D_ZB" ||
-	dataset=="UL2017E_ZB" || dataset=="UL2017F_ZB" ||
-	dataset=="UL2018A_ZB" || dataset=="UL2018B_ZB" || dataset=="UL2018C_ZB" ||
-	dataset=="UL2018D_ZB"
-	)) {
+  if (!(dataset == "UL2016BCD" || dataset == "UL2016EF" ||
+        dataset == "UL2016APVMG" || dataset == "UL2016GH" ||
+        dataset == "UL2016MG" || dataset == "UL2016Flat" ||
+        dataset == "UL2017B" || dataset == "UL2017C" || dataset == "UL2017D" ||
+        dataset == "UL2017E" || dataset == "UL2017F" || dataset == "UL2017MG" ||
+        dataset == "UL2018A" || dataset == "UL2018B" || dataset == "UL2018C" ||
+        // dataset=="UL2018D" ||
+        dataset == "UL2018D1" || dataset == "UL2018D2" ||
+        dataset == "UL2018MG" ||
+
+        dataset == "UL2016BCD_ZB" || dataset == "UL2016EF_ZB" ||
+        dataset == "UL2016GH_ZB" || dataset == "UL2017B_ZB" ||
+        dataset == "UL2017C_ZB" || dataset == "UL2017D_ZB" ||
+        dataset == "UL2017E_ZB" || dataset == "UL2017F_ZB" ||
+        dataset == "UL2018A_ZB" || dataset == "UL2018B_ZB" ||
+        dataset == "UL2018C_ZB" || dataset == "UL2018D_ZB" ||
+        dataset == "FlatQCD" || dataset == "2023A" || dataset == "2023B" || dataset == "2023C" || dataset == "2023D" 
+        || dataset == "JM2023C0" || dataset == "JM2023C1"
+        || dataset == "2022C" )) {
     cout << "Dataset not supported" << endl << flush;
     cout << "Supported datasets are:" << endl
 	 << "UL2016BCD, UL2016EF, UL2016APVMG" << endl
@@ -90,29 +92,31 @@ void mk_DijetHistosFill(string dataset = "X", string version = "vX") {
       	 << "UL2018A_ZB, UL2018B_ZB, UL2018C_ZB, UL2018D_ZB" << endl
 	 << endl;
   }
-  
+
   // Settings
   bool addData =
-    (dataset=="UL2016BCD" || dataset=="UL2016EF" ||
-     dataset=="UL2016GH" ||
-     dataset=="UL2017B" || dataset=="UL2017C" || dataset=="UL2017D" ||
-     dataset=="UL2017E" || dataset=="UL2017F" ||
-     dataset=="UL2018A" || dataset=="UL2018B" || dataset=="UL2018C" ||
-     //dataset=="UL2018D"
-     dataset=="UL2018D1" || dataset=="UL2018D2" ||
+      (dataset == "UL2016BCD" || dataset == "UL2016EF" ||
+       dataset == "UL2016GH" || dataset == "UL2017B" || dataset == "UL2017C" ||
+       dataset == "UL2017D" || dataset == "UL2017E" || dataset == "UL2017F" ||
+       dataset == "UL2018A" || dataset == "UL2018B" || dataset == "UL2018C" ||
+       // dataset=="UL2018D"
+       dataset == "UL2018D1" || dataset == "UL2018D2" ||
 
-     dataset=="UL2016BCD_ZB" || dataset=="UL2016EF_ZB" || dataset=="UL2016GH_ZB" ||
-     dataset=="UL2017B_ZB" || dataset=="UL2017C_ZB" || dataset=="UL2017D_ZB" ||
-     dataset=="UL2017E_ZB" || dataset=="UL2017F_ZB" ||
-     dataset=="UL2018A_ZB" || dataset=="UL2018B_ZB" || dataset=="UL2018C_ZB" ||
-     dataset=="UL2018D_ZB"
-     );
+       dataset == "UL2016BCD_ZB" || dataset == "UL2016EF_ZB" ||
+       dataset == "UL2016GH_ZB" || dataset == "UL2017B_ZB" ||
+       dataset == "UL2017C_ZB" || dataset == "UL2017D_ZB" ||
+       dataset == "UL2017E_ZB" || dataset == "UL2017F_ZB" ||
+       dataset == "UL2018A_ZB" || dataset == "UL2018B_ZB" ||
+       dataset == "UL2018C_ZB" || dataset == "UL2018D_ZB" ||
+       dataset == "2023A" || dataset == "2023B" || dataset == "2022C" ||
+       dataset == "2023C" || dataset == "2023D" || dataset == "2022C" ||
+       dataset == "JM2023C0" || dataset == "JM2023C1");
   bool addMC =
     (dataset=="UL2016APVMG" ||
      dataset=="UL2016MG"  || dataset=="UL2016Flat" ||
-     dataset=="UL2017MG"  || dataset=="UL2018MG"
-     ); 
-
+     dataset=="UL2017MG"  || dataset=="UL2018MG" || dataset=="FlatQCD"
+     );
+    
   //cout << "Clean old shared objects and link files" << endl << flush;
   //gSystem->Exec("rm *.d");
   //gSystem->Exec("rm *.so");
@@ -145,9 +149,9 @@ void mk_DijetHistosFill(string dataset = "X", string version = "vX") {
   TChain *c = new TChain("Events");
   
   // Automatically figure out where we are running the job
-  bool runGPU = (path=="/media/storage/dijet");
-  bool runLocal = (path=="/Users/voutila/Dropbox/Cern/dijet" ||
-		   path=="/Users/manvouti/Dropbox/Cern/dijet");
+  bool runGPU = true;
+  bool runLocal = (path == "/Users/voutila/Dropbox/Cern/dijet" ||
+                   path == "/Users/manvouti/Dropbox/Cern/dijet");
   if (!runLocal) assert(runGPU);
   
   if (addData) {

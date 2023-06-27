@@ -22,7 +22,7 @@
 bool doMCtrigOnly = true;
 
 // JER smearing (JER SF)
-bool smearJets = true;
+bool smearJets = false;
 bool useJERSFvsPt = true; // new file format
 int smearNMax = 3;
 std::uint32_t _seed;
@@ -487,13 +487,30 @@ void DijetHistosFill::Loop()
    // NB: could implement time dependence as in jetphys/IOV.h
    FactorizedJetCorrector *jec(0), *jecl1rc(0), *jersfvspt(0);
    string jerpath(""), jerpathsf("");
-   //jec = getFJC("","Winter22Run3_V1_MC_L2Relative","","");
-   if (isRun2==0) {
-     jec = getFJC("","Winter22Run3_V1_MC_L2Relative",
-		  isMC ? "":"Winter22Run3_RunC_V2_DATA_L2L3Residual_AK4PFPuppi");
+
+  //  if( dataset == "2023A")
+  //  {
+  //    jec = getFJC(
+  //        "", "Winter23Prompt23_V1_MC_L2Relative", isMC ? ""
+  //             : "Winter23Prompt23_RunA_V1_DATA_L2L3Residual_AK4PFPuppi");
+  //  }
+  //  jec = getFJC("","Winter22Run3_V1_MC_L2Relative","","");
+  //  if (isRun2==0) {
+  //    jec = getFJC("","Winter22Run3_V1_MC_L2Relative",
+	// 	  isMC ? "":"Winter22Run3_RunC_V2_DATA_L2L3Residual_AK4PFPuppi");
+     
+  //  }
+
+   if (dataset == "2023A" || dataset == "2023B" || dataset == "2023C" ||
+       dataset == "JM2023C0" || dataset == "JM2023C1") {
+     jec = getFJC(
+         "", "Winter23Prompt23_V1_MC_L2Relative",
+         isMC ? "" : "Winter23Prompt23_RunA_V1_DATA_L2L3Residual_AK4PFPuppi");
+     jecl1rc = getFJC("Winter23Prompt23_RunA_V1_DATA_L1FastJet", "", "");
    }
-   // 2016APV (BCD, EF)
-   if (dataset=="UL2016APVMG") {
+
+       // 2016APV (BCD, EF)
+       if (dataset == "UL2016APVMG") {
      jec = getFJC("Summer19UL16APV_V7_MC_L1FastJet_AK4PFchs",
 		  "Summer19UL16APV_V7_MC_L2Relative_AK4PFchs","");
      jecl1rc = getFJC("Summer19UL16APV_V7_MC_L1RC_AK4PFchs","","");
@@ -613,7 +630,7 @@ void DijetHistosFill::Loop()
    if (!jec || !jecl1rc)
      cout << "Missing files for " << dataset << endl << flush;
    assert(jec);
-   assert(jecl1rc);
+   //assert(jecl1rc);
 
    if (debug) cout << "Setting up JER smearing" << endl << flush;
    
@@ -1399,32 +1416,32 @@ void DijetHistosFill::Loop()
    // JECDatabase/jet_veto_maps/Summer19UL16_V0/hotjets-UL16.root
    // JECDatabase/jet_veto_maps/Summer19UL17_V2/hotjets-UL17_v2.root
    // JECDatabase/jet_veto_maps/Summer19UL18_V1/hotjets-UL18.root
-   TFile *fjv(0);
-   if (isRun2==1 || isRun2==2) //TString(ds.c_str()).Contains("2016"))
-     fjv = new TFile("rootfiles/hotjets-UL16.root","READ");
-   if (isRun2==3) //TString(ds.c_str()).Contains("2017"))
-	fjv = new TFile("rootfiles/hotjets-UL17_v2.root","READ");
-   if (isRun2==4) //TString(ds.c_str()).Contains("2018"))
-	fjv = new TFile("rootfiles/hotjets-UL18.root","READ");
-   assert(fjv);
+  //  TFile *fjv(0);
+  //  if (isRun2==1 || isRun2==2) //TString(ds.c_str()).Contains("2016"))
+  //    fjv = new TFile("rootfiles/hotjets-UL16.root","READ");
+  //  if (isRun2==3) //TString(ds.c_str()).Contains("2017"))
+	// fjv = new TFile("rootfiles/hotjets-UL17_v2.root","READ");
+  //  if (isRun2==4) //TString(ds.c_str()).Contains("2018"))
+	// fjv = new TFile("rootfiles/hotjets-UL18.root","READ");
+  //  assert(fjv);
    
-   // Veto lists for different years (NB: extra MC map for UL16):
-   // h2hot_ul16_plus_hbm2_hbp12_qie11 + h2hot_mc (for UL16)
-   // h2hot_ul17_plus_hep17_plus_hbpw89 (UL17)
-   // h2hot_ul18_plus_hem1516_and_hbp2m1 (UL18)
-   TH2D *h2jv(0);
-   if (isRun2==1 || isRun2==2) { //TString(ds.c_str()).Contains("2016")) {
-     h2jv = (TH2D*)fjv->Get("h2hot_ul16_plus_hbm2_hbp12_qie11");
-     assert(h2jv);
-     TH2D *h2mc = (TH2D*)fjv->Get("h2hot_mc");
-     assert(h2mc);
-     h2jv->Add(h2mc);
-   }
-   if (isRun2==3) //TString(ds.c_str()).Contains("2017"))
-     h2jv = (TH2D*)fjv->Get("h2hot_ul17_plus_hep17_plus_hbpw89");
-   if (isRun2==4) //TString(ds.c_str()).Contains("2018"))
-     h2jv = (TH2D*)fjv->Get("h2hot_ul18_plus_hem1516_and_hbp2m1");
-   assert(h2jv);
+  //  // Veto lists for different years (NB: extra MC map for UL16):
+  //  // h2hot_ul16_plus_hbm2_hbp12_qie11 + h2hot_mc (for UL16)
+  //  // h2hot_ul17_plus_hep17_plus_hbpw89 (UL17)
+  //  // h2hot_ul18_plus_hem1516_and_hbp2m1 (UL18)
+  //  TH2D *h2jv(0);
+  //  if (isRun2==1 || isRun2==2) { //TString(ds.c_str()).Contains("2016")) {
+  //    h2jv = (TH2D*)fjv->Get("h2hot_ul16_plus_hbm2_hbp12_qie11");
+  //    assert(h2jv);
+  //    TH2D *h2mc = (TH2D*)fjv->Get("h2hot_mc");
+  //    assert(h2mc);
+  //    h2jv->Add(h2mc);
+  //  }
+  //  if (isRun2==3) //TString(ds.c_str()).Contains("2017"))
+  //    h2jv = (TH2D*)fjv->Get("h2hot_ul17_plus_hep17_plus_hbpw89");
+  //  if (isRun2==4) //TString(ds.c_str()).Contains("2018"))
+  //    h2jv = (TH2D*)fjv->Get("h2hot_ul18_plus_hem1516_and_hbp2m1");
+  //  assert(h2jv);
    
    //Long64_t nentries = fChain->GetEntriesFast();
    Long64_t nentries = fChain->GetEntries(); // Long startup time
@@ -1595,13 +1612,13 @@ void DijetHistosFill::Loop()
 	// pt*(1-l1rcFactor)=ptl1rc => l1rcFactor = 1 - ptl1rc/pt
 	Jet_l1rcFactor[i] = (isRun2 ? (1.0-jecl1rc->getCorrection()/corr) : 1);
 
-	if (true) { // check jet veto
-	  int i1 = h2jv->GetXaxis()->FindBin(Jet_eta[i]);
-	  int j1 = h2jv->GetYaxis()->FindBin(Jet_phi[i]);
-	  Jet_jetveto[i] = (h2jv->GetBinContent(i1,j1)>0);
-	} // jet veto
-	else
-	  Jet_jetveto[i] = false;
+	// if (true) { // check jet veto
+	//   int i1 = h2jv->GetXaxis()->FindBin(Jet_eta[i]);
+	//   int j1 = h2jv->GetYaxis()->FindBin(Jet_phi[i]);
+	//   Jet_jetveto[i] = (h2jv->GetBinContent(i1,j1)>0);
+	// } // jet veto
+	// else
+	//   Jet_jetveto[i] = false;
 
 	// Fail allJetsGood flag if any jet of pT>15 is not good
 	if (!(Jet_jetId[i]>=4 && !Jet_jetveto[i]) && Jet_pt[i]>15.)
@@ -2583,7 +2600,11 @@ bool DijetHistosFill::LoadJSON()
       json="rootfiles/Cert_294927-306462_13TeV_UL2017_Collisions17_GoldenJSON.txt";
     if (isRun2==4)
     json="rootfiles/Cert_314472-325175_13TeV_Legacy2018_Collisions18_JSON.txt";
-  
+    if (dataset == "2023A" || dataset == "2023B" || dataset == "2023C" ||
+        dataset == "JM2023C0" || dataset == "JM2023C1") {
+    json = "rootfiles/Run3_2022_2023call6_golden.json";
+    }
+
   cout << "Processing LoadJSON() with " + json + " ..." << flush;
   ifstream file(json, ios::in);
   if (!file.is_open()) return false;
