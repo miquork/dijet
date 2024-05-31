@@ -103,6 +103,10 @@ void drawCompareLite(string run = "2023D") {
 
   string sA = "19Dec2023";
   string sB = "22Sep2023";//"Prompt23";//"22Sep";
+  if (run=="2024B") {
+    sA = "ECALRATIO";
+    sB = "Prompt24";
+  }
   const char *cA = sA.c_str();
   const char *cB = sB.c_str();
   
@@ -123,7 +127,9 @@ void drawCompareLite(string run = "2023D") {
     if (run=="2023Cv123_v2") { h->GetYaxis()->SetRangeUser(0.94,1.09); }
     if (run=="2023Cv4_v2")   { h->GetYaxis()->SetRangeUser(0.94,1.09); }
     if (run=="2023D_v2")     { h->GetYaxis()->SetRangeUser(0.94,1.09); }
-    if (run=="Run3_v2")      { h->GetYaxis()->SetRangeUser(0.94,1.09); }    
+    if (run=="Run3_v2")      { h->GetYaxis()->SetRangeUser(0.94,1.09); }
+
+    if (run=="2024B")      { h->GetYaxis()->SetRangeUser(0.82,1.10); }    
   }
   
   lumi_136TeV = run.c_str();//"2023Cv123";
@@ -196,6 +202,12 @@ void drawCompareLite(string run = "2023D") {
     f1->SetRange(600,4000);
     f2->SetRange(fitxmin,4000);
   }
+
+  // Fit function for ECAL CC timing
+  f1->SetRange(20,3300);
+  //TF1 *f3 = new TF1("f1","[0]+[1]*log(x)+[2]*pow(log(x),2)+[3]*pow(log(x),3)"
+  //		    "+[4]*pow(log(x),4)+[5]*pow(log(x),5)",20,3300);
+  //f3->SetParameters(1,0,0,0,0,0);
   
   TMultiGraph *mg = new TMultiGraph();
   mg->Add(g);
@@ -205,8 +217,12 @@ void drawCompareLite(string run = "2023D") {
   f1->SetLineWidth(2);
   f1->SetParameters(1.08,-0.05);
   //mg->Fit(f1,"RN");
-  mg->Fit(f1,"RN");
+  g->Fit(f1,"RN");
   f1->Draw("SAME");
+
+  //f3->SetLineColor(kBlue);
+  //g->Fit(f3,"RN");
+  //f3->Draw("SAME");
 
   f2->SetLineColor(kGreen+2);
   f2->SetLineWidth(2);
@@ -222,6 +238,9 @@ void drawCompareLite(string run = "2023D") {
   leg->Draw();
 
   c1->SaveAs(Form("pdf/drawCompareLite_%s_vs_%s_TnP_%s.pdf",cB,cA,crun));
+
+  // jecsys3/globalFitSettings.h shapes are %'s around 0
+  cout << Form("{\"ecalcc\",\"Rjet\",\"max(%1.3g%+1.3g*(-0.798-0.5798*pow(x/396.1,1.412)/(1+pow(x/396.1,1.412))*(1-pow(x/396.1,-1.412)))%+1.3g*x/3000.,-15.)\"},",100.*(f1->GetParameter(0)-1),f1->GetParameter(1),-10.*f1->GetParameter(2)) << endl;
 } // drawTnP
 
 

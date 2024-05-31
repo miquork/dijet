@@ -1,4 +1,5 @@
 // Compare 19Dec2023 vs 22Sep2023
+// => Compare 2024ECALRatio to Prompt
 // Only load a few branches (event ID, jet pt, eta, phi)
 #include <TROOT.h>
 #include <TChain.h>
@@ -37,7 +38,7 @@ using namespace tools;
 bool patchJESA = true;
 bool patchJESB = true;
 
-bool OneRun = true; //for fast testing
+bool OneRun = false; //for fast testing
 bool doPFComposition = true;
 
 class evtid {
@@ -208,6 +209,12 @@ FactorizedJetCorrector *selectJECEra(string dataset) {
                  "Summer22Prompt23_Run2023D_V3_DATA_L2L3Residual");
   }
 
+  if (dataset == "2024B" || dataset == "2024BR") {
+    jec = getFJC("",
+                 "Winter24Run3_V1_MC_L2Relative_AK4PUPPI",
+                 "Prompt24_Run2024BC_V2M_DATA_L2L3Residual_AK4PFPuppi");
+  }
+
   assert(jec);
   return jec;
 }
@@ -225,8 +232,8 @@ TH2D *getJVM(string dataset) {
   if (dataset == "2023C" || dataset == "2023Cv123" || dataset == "2023Cv4") {
     fjv = new TFile("rootfiles/jetveto2023BC.root", "READ");
   }
-  if (dataset == "2023D") {
-    fjv = new TFile("rootfiles/jetveto2023D.root", "READ");
+  if (dataset == "2024B") {
+    fjv = new TFile("rootfiles/jetveto2024BCD_V3M.root", "READ");
   }
   assert(fjv);
   
@@ -251,13 +258,15 @@ void compareLite(string run="2023D") {
   // Also set JSON filter
   double jesAfix(1.);
   TChain *c_tA = new TChain("Events");
-  cout << "A is 19Dec2023" << endl;
+  //cout << "A is 19Dec2023" << endl;
+  cout << "A is 2024ECALRATIO" << endl;
   {
     LoadJSON("rootfiles/Cert_Collisions2022_355100_362760_Golden.json");
     LoadJSON("rootfiles/Cert_Collisions2023_366442_370790_Golden.json");
+    LoadJSON("rootfiles/Cert_Collisions2024_378981_380649_Golden.json");
 
-
-    string filename = Form("input_files/dataFiles_%s.txt.19Dec2023.%sv12", crun, OneRun==true ? "OneRun." : "");
+    //string filename = Form("input_files/dataFiles_%s.txt.19Dec2023.%sv12", crun, OneRun==true ? "OneRun." : "");
+    string filename = Form("input_files/dataFiles_%s.txt.%s2024ECALRATIO", crun, OneRun==true ? "OneRun." : "");
     ifstream fin(filename.c_str(), ios::in);
 
     //string filename = Form("input_files/dataFiles_%s.txt.19Dec2023.v12",crun);
@@ -292,9 +301,11 @@ void compareLite(string run="2023D") {
 
   // Book TB tree (22Sep2023)
   TChain *c_tB = new TChain("Events");
-  cout << "B is 22Sep2023" << endl;
+  //cout << "B is 22Sep2023" << endl;
+  cout << "B is Prompt24" << endl;
   {
-    string filename = Form("input_files/dataFiles_%s.txt.22Sep2023.%sv12", crun, OneRun==true ? "OneRun." : "");
+    //string filename = Form("input_files/dataFiles_%s.txt.22Sep2023.%sv12", crun, OneRun==true ? "OneRun." : "");
+    string filename = Form("input_files/dataFiles_%s.txt.%sPrompt24", crun, OneRun==true ? "OneRun." : "");
     ifstream fin(filename.c_str(), ios::in);
     
     cout << "Chaining data files for B: " << filename << endl << flush;
@@ -833,6 +844,7 @@ void compareLite(string run="2023D") {
 	//double rawmass = jtmass_tA[i] * (1-jtjes_tA[i]);
 	jec->setJetPt(rawpt);
 	jec->setJetEta(jteta_tA[i]);
+	jec->setJetPhi(jtphi_tA[i]);
 	jec->setJetA(jtA_tA[i]);
 	jec->setRho(rho_tA);
 	//vector<float> v = jec->getSubCorrections();
@@ -855,6 +867,7 @@ void compareLite(string run="2023D") {
 	//double rawmass = jtmass_tB[i] * (1-jtjes_tB[i]);
 	jec->setJetPt(rawpt);
 	jec->setJetEta(jteta_tB[i]);
+	jec->setJetPhi(jtphi_tB[i]);
 	jec->setJetA(jtA_tB[i]);
 	jec->setRho(rho_tB);
 	//vector<float> v = jec->getSubCorrections();
