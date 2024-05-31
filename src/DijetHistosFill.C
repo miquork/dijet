@@ -20,16 +20,23 @@
 #include <sstream>
 #include <unordered_map>
 #include <array>
+#include <string_view>
+
+// Recalculate JECs
+bool redoJEC = true;
 
 // MC triggers (slow) or not (faster)
 bool doMCtrigOnly = true;
 
 // JER smearing (JER SF)
-bool smearJets = false;
+bool smearJets = true;
 bool useJERSFvsPt = true; // new file format
 int smearNMax = 3;
 std::uint32_t _seed;
 std::mt19937 _mersennetwister;
+
+// Do PU reweighting
+bool reweightPU = true;
 
 // Activate modules
 bool doJetveto = true; // eta-phi maps
@@ -42,6 +49,7 @@ bool doMultijet = true; // multijet selection
 // Core additions
 bool doPFComposition = true; // jetveto / incjet / dijet / multijet
 bool doDijetJER = true;
+
 
 // Additional variants and controls
 bool doJetvetoVariants = false;
@@ -77,39 +85,53 @@ double DELTAR(double phi1, double phi2, double eta1, double eta2)
   return sqrt(pow(DELTAPHI(phi1, phi2), 2) + pow(eta1 - eta2, 2));
 }
 
-const constexpr std::array<std::pair<std::string_view, const char *>, 19> lumifiles = {{
-    {"2022C", "luminosityscripts/csvfiles/lumibyls2022C.csv"},
-    {"2022C_ZB", "luminosityscripts/csvfiles/lumibyls2022C.csv"},
-    {"2022D", "luminosityscripts/csvfiles/lumibyls2022D.csv"},
-    {"2022D_ZB", "luminosityscripts/csvfiles/lumibyls2022D.csv"},
-    {"2022E", "luminosityscripts/csvfiles/lumibyls2022E.csv"},
-    {"2022E_ZB", "luminosityscripts/csvfiles/lumibyls2022E.csv"},
-    {"2022F", "luminosityscripts/csvfiles/lumibyls2022F.csv"},
-    {"2022F_ZB", "luminosityscripts/csvfiles/lumibyls2022F.csv"},
-    {"2022G", "luminosityscripts/csvfiles/lumibyls2022G.csv"},
-    {"2022G_ZB", "luminosityscripts/csvfiles/lumibyls2022G.csv"},
-    {"2023B", "luminosityscripts/csvfiles/lumibyls2023AB.csv"},
-    {"2023B_ZB", "luminosityscripts/csvfiles/lumibyls2023AB.csv"},
-    {"2023Cv4", "luminosityscripts/csvfiles/lumibyls2023C4.csv"},
-    {"2023Cv4_ZB", "luminosityscripts/csvfiles/lumibyls2023C4.csv"},
-    {"2023Cv123", "luminosityscripts/csvfiles/lumibyls2023C123.csv"},
-    {"2023BCv123", "luminosityscripts/csvfiles/lumibyls2023ABC.csv"},
-    {"20223Cv123_ZB", "luminosityscripts/csvfiles/lumibyls2023C123.csv"},
-    {"2023D", "luminosityscripts/csvfiles/lumibyls2023D.csv"},
-    {"2023D_ZB", "luminosityscripts/csvfiles/lumibyls2023D.csv"},
-}};  // NOT CORRECT FOR 2023BCv123!!!! TEMP. FIX WHILE LUMI IS STILL NOT IN USE
 
-constexpr const char *getLumifile(const std::string_view dataset)
+
+constexpr const char lumibyls2022C[] = "luminosityscripts/csvfiles/lumibyls2022C.csv";
+constexpr const char lumibyls2022D[] = "luminosityscripts/csvfiles/lumibyls2022D.csv";
+constexpr const char lumibyls2022E[] = "luminosityscripts/csvfiles/lumibyls2022E.csv";
+constexpr const char lumibyls2022F[] = "luminosityscripts/csvfiles/lumibyls2022F.csv";
+constexpr const char lumibyls2022G[] = "luminosityscripts/csvfiles/lumibyls2022G.csv";
+constexpr const char lumibyls2023B[] = "luminosityscripts/csvfiles/lumibyls2023AB.csv";
+constexpr const char lumibyls2023C4[] = "luminosityscripts/csvfiles/lumibyls2023C4.csv";
+constexpr const char lumibyls2023C123[] = "luminosityscripts/csvfiles/lumibyls2023C123.csv";
+constexpr const char lumibyls2023ABC[] = "luminosityscripts/csvfiles/lumibyls2023ABC.csv";
+constexpr const char lumibyls2023D[] = "luminosityscripts/csvfiles/lumibyls2023D.csv";
+
+constexpr std::array<std::pair<const char*, const char*>, 19> lumifiles = {{
+    {"2022C", lumibyls2022C},
+    {"2022C_ZB", lumibyls2022C},
+    {"2022D", lumibyls2022D},
+    {"2022D_ZB", lumibyls2022D},
+    {"2022E", lumibyls2022E},
+    {"2022E_ZB", lumibyls2022E},
+    {"2022F", lumibyls2022F},
+    {"2022F_ZB", lumibyls2022F},
+    {"2022G", lumibyls2022G},
+    {"2022G_ZB", lumibyls2022G},
+    {"2023B", lumibyls2023B},
+    {"2023B_ZB", lumibyls2023B},
+    {"2023Cv4", lumibyls2023C4},
+    {"2023Cv4_ZB", lumibyls2023C4},
+    {"2023Cv123", lumibyls2023C123},
+    {"2023BCv123", lumibyls2023ABC},
+    {"20223Cv123_ZB", lumibyls2023C123},
+    {"2023D", lumibyls2023D},
+    {"2023D_ZB", lumibyls2023D},
+}}; // NOT CORRECT FOR 2023BCv123!!!! TEMP. FIX WHILE LUMI IS STILL NOT IN USE
+
+constexpr const char *getLumifile(const char* dataset, std::size_t index = 0)
 {
-  for (const auto &entry : lumifiles)
-  {
-    if (entry.first == dataset)
-    {
-      return entry.second;
-    }
-  }
-  return nullptr; // Or handle the case when dataset is not found
+    if (index >= lumifiles.size())
+        return nullptr; // Dataset not found
+
+    if (std::strcmp(lumifiles[index].first, dataset) == 0)
+        return lumifiles[index].second;
+    
+    return getLumifile(dataset, index + 1);
 }
+
+
 
 // Hardcoded pT, eta thresholds for each trigger
 // used in e.g. jetvetoHistos
@@ -257,8 +279,9 @@ public:
   string trg;
   int trgpt;
   float lumsum, lumsum2, lum, lum2; // lum is recorded, lum2 delivered
-  TH1D *htrglumi;
+  TH1D *htrglumi, *htrgpu, *hnpv, *hnpvgood;
 };
+
 
 // Helper function to retrieve FactorizedJetCorrector
 FactorizedJetCorrector *getFJC(string l1 = "", string l2 = "", string res = "",
@@ -345,6 +368,8 @@ void DijetHistosFill::Loop()
   TStopwatch fulltime, laptime;
   fulltime.Start();
   TDatime bgn;
+  TDatime start_time;
+  start_time.Set();
   int nlap(0);
 
   fChain->SetBranchStatus("*", 0);
@@ -363,6 +388,12 @@ void DijetHistosFill::Loop()
     fChain->SetBranchStatus("Generator_binvar", 1); // pThat in Pythia8
   if (isMC && !(isMG && isRun3))
     fChain->SetBranchStatus("Pileup_pthatmax", 1);
+
+  if (isMC && reweightPU)
+  {
+    fChain->SetBranchStatus("Pileup_nTrueInt", 1);
+    fChain->SetBranchStatus("Pileup_nPU", 1);
+  }
 
   if (isMC && (smearJets || doMCtruth))
   {
@@ -588,6 +619,8 @@ void DijetHistosFill::Loop()
   mt["HLT_PFJetFwd450"] = range{500, 600, fwdeta0, 5.2}; // x
   mt["HLT_PFJetFwd500"] = range{600, 6500, fwdeta0, 5.2};
 
+
+
   if (debug)
     cout << "Setting up JEC corrector" << endl
          << flush;
@@ -602,6 +635,8 @@ void DijetHistosFill::Loop()
   //		  isMC ? "":"Winter22Run3_RunC_V2_DATA_L2L3Residual_AK4PFPuppi");
   // }
   //  2016APV (BCD, EF)
+
+  TH1D *pileupRatio = new TH1D("puRatio", "PURatio;;Ratio", 99, 0, 100);
 
   if (dataset == "UL2016APVMG")
   {
@@ -819,14 +854,46 @@ void DijetHistosFill::Loop()
   }
   if (dataset == "Summer23" ||
       dataset == "Summer23Flat" || dataset == "Summer23MG" ||
-      dataset == "Summer23BPIXFlat" || dataset == "Summer23BPIXMG")
+      dataset == "Summer23BPIXFlat" || dataset == "Summer23BPIXMG" || TString(dataset.c_str()).Contains("Summer23"))
   {
-    jec = getFJC("", // Winter23Prompt23_V2_MC_L1FastJet_AK4PFPuppi",
-                 "Winter23Prompt23_V2_MC_L2Relative_AK4PFPuppi",
-                 "");                                                                                   // Winter23Prompt23_V2_MC_L2L3Residual_AK4PFPuppi");
+    if (TString(dataset.c_str()).Contains("Summer23MGBPix")) {
+      jec = getFJC("",
+                  "Summer23BPixRun3_V3_MC_L2Relative_AK4PUPPI",
+                  "");                                             
+    } else {
+      jec = getFJC("", 
+                  "Summer23Run3_V1_MC_L2Relative_AK4PUPPI",
+                  ""); 
+    }
+    //jec = getFJC("", // Winter23Prompt23_V2_MC_L1FastJet_AK4PFPuppi",
+    //             "Winter23Prompt23_V2_MC_L2Relative_AK4PFPuppi",
+    //             "");                                                                                   // Winter23Prompt23_V2_MC_L2L3Residual_AK4PFPuppi");
     jerpath = "CondFormats/JetMETObjects/data/Summer22EEVetoRun3_V1_NSCP_MC_PtResolution_ak4puppi.txt"; // Same as Summer22EE, until updated
     jerpathsf = "CondFormats/JetMETObjects/data/Summer22EERun3_V1_MC_SF_AK4PFPuppi.txt";                // Same as Summer22EE, until updated
     useJERSFvsPt = false;
+
+    if (reweightPU)
+    {
+      if (TString(dataset.c_str()).Contains("Summer23MGBPix")) {
+        TFile f("luminosityscripts/PUWeights/Summer23BPix_PUWeight.root");
+        pileupRatio = (TH1D *)f.Get("pileup");
+        pileupRatio->SetDirectory(0);
+        // Print mean, min weight, max weight
+        cout << "Pileup ratio mean = " << pileupRatio->GetMean() << endl;
+        cout << "Pileup ratio min = " << pileupRatio->GetMinimum() << endl;
+        cout << "Pileup ratio max = " << pileupRatio->GetMaximum() << endl;
+  
+      } else {
+        TFile f("luminosityscripts/PUWeights/Summer23_PUWeight.root");
+        pileupRatio = (TH1D *)f.Get("pileup");
+        pileupRatio->SetDirectory(0);
+        // Print mean, min weight, max weight
+        cout << "Pileup ratio mean = " << pileupRatio->GetMean() << endl;
+        cout << "Pileup ratio min = " << pileupRatio->GetMinimum() << endl;
+        cout << "Pileup ratio max = " << pileupRatio->GetMaximum() << endl;
+  
+      }
+    }
   }
 
   // 2023
@@ -841,27 +908,27 @@ void DijetHistosFill::Loop()
   {
     jec = getFJC("",                                                               // Winter23Prompt23_RunC_V2_DATA_L1FastJet_AK4PFPuppi",
                                                                                    //"Winter23Prompt23_RunC_V2_DATA_L2Relative_AK4PFPuppi",
-                 "Summer22Run3_V1_MC_L2Relative_AK4PUPPI",                         // Mikel
+                 "Summer23Run3_V1_MC_L2Relative_AK4PUPPI",                         // Mikel
                                                                                    // "Run23C123-Prompt_DATA_L2L3Residual_AK4PFPuppi"
-                 "Summer22Prompt23_Run2023Cv123_V3_DATA_L2L3Residual_AK4PFPUPPI"); //"Winter23Prompt23_RunC_V2_DATA_L2L3Residual_AK4PFPuppi");
+                 "Summer23Prompt23_Run2023Cv123_V1_DATA_L2L3Residual_AK4PFPuppi"); //"Winter23Prompt23_RunC_V2_DATA_L2L3Residual_AK4PFPuppi");
   }
 
   if (dataset == "2023Cv4" || dataset == "2023Cv4_ZB")
   {
     jec = getFJC("",                                                             // Winter23Prompt23_RunC_V2_DATA_L1FastJet_AK4PFPuppi",
                                                                                  //"Winter23Prompt23_RunC_V2_DATA_L2Relative_AK4PFPuppi",
-                 "Summer22Run3_V1_MC_L2Relative_AK4PUPPI",                       // Mikel
+                 "Summer23Run3_V1_MC_L2Relative_AK4PUPPI",                       // Mikel
                                                                                  //"Run23C4-Prompt_DATA_L2L3Residual_AK4PFPuppi"
-                 "Summer22Prompt23_Run2023Cv4_V3_DATA_L2L3Residual_AK4PFPUPPI"); //"Winter23Prompt23_RunC_V2_DATA_L2L3Residual_AK4PFPuppi");
+                 "Summer23Prompt23_Run2023Cv4_V1_DATA_L2L3Residual_AK4PFPuppi"); //"Winter23Prompt23_RunC_V2_DATA_L2L3Residual_AK4PFPuppi");
   }
 
   if (dataset == "2023D" || dataset == "2023D_ZB")
   {
     jec = getFJC("",                                                           // Winter23Prompt23_RunC_V2_DATA_L1FastJet_AK4PFPuppi",
                                                                                //"Winter23Prompt23_RunC_V2_DATA_L2Relative_AK4PFPuppi",
-                 "Summer22Run3_V1_MC_L2Relative_AK4PUPPI",                     // Mikel
+                 "Summer23BPixRun3_V3_MC_L2Relative_AK4PUPPI",                     // Mikel
                                                                                //"Run23D-Prompt_DATA_L2L3Residual_AK4PFPuppi"
-                 "Summer22Prompt23_Run2023D_V3_DATA_L2L3Residual_AK4PFPUPPI"); //"Winter23Prompt23_RunC_V2_DATA_L2L3Residual_AK4PFPuppi");
+                 "Summer23Prompt23_Run2023D_V1_DATA_L2L3Residual_AK4PFPuppi"); //"Winter23Prompt23_RunC_V2_DATA_L2L3Residual_AK4PFPuppi");
   }
 
   if ((isRun2 && (!jec || !jecl1rc)) || (isRun3 && !jec))
@@ -924,24 +991,32 @@ void DijetHistosFill::Loop()
     htrg->GetXaxis()->SetBinLabel(i, vtrg[i - 1].c_str());
   }
 
-  // Pileup vs trigger
-  TH2D *h_lumivstrpu = new TH2D("h_lumivstrpu", "Triggers;Trigger;Lumi",
-                        vtrg.size(), 0, vtrg.size(), 100, 0, 100);
-  for (int i = 1; i != h_lumivstrpu->GetNbinsX() + 1; ++i)
+  // trigger vs lumi
+  TH2D *h_trgvslumi = new TH2D("h_trgvslumi", "Triggers;Trigger;Lumi",
+                        vtrg.size(), 0, vtrg.size(), 100, 0, 1);
+  for (int i = 1; i != h_trgvslumi->GetNbinsX() + 1; ++i)
   {
-    h_lumivstrpu->GetXaxis()->SetBinLabel(i, vtrg[i - 1].c_str());
+    h_trgvslumi->GetXaxis()->SetBinLabel(i, vtrg[i - 1].c_str());
   }
 
+  // trigger vs pu
+  TH2D *h_trgvspu = new TH2D("h_trgvspu", "Triggers;Trigger;PU",
+                        vtrg.size(), 0, vtrg.size(), 100, 0, 100);
+  for (int i = 1; i != h_trgvspu->GetNbinsX() + 1; ++i)
+  {
+    h_trgvspu->GetXaxis()->SetBinLabel(i, vtrg[i - 1].c_str());
+  }
+              
   if (debug)
     cout << "Setting up histograms" << endl
          << flush;
 
   // Setup HT bin weighting and monitoring
-  TH1D *hxsec(0), *hnevt(0), *hnwgt(0), *hLHE_HT(0), *hLHE_HTw(0), *hHT(0);
-  double vht2[] = {0, 25, 50, 100, 200, 300, 500, 700, 1000, 1500, 2000, 6500};
+  TH1D *hxsec(0), *hnevt(0), *hnwgt(0), *hLHE_HT(0), *hLHE_HTw(0), *hHT(0), *hHT_Now(0), *hHT_MCw(0), *hHT_w(0);
+  double vht2[] = {0, 25, 50, 100, 200, 300, 500, 700, 1000, 1500, 2000, 13800};
   const int nht2 = sizeof(vht2) / sizeof(vht2[0]) - 1;
   double vht3[] = {0, 40, 70, 100, 200, 400, 600, 800, 1000, 1200, 1500, 2000,
-                   6800};
+                   13800};
   const int nht3 = sizeof(vht3) / sizeof(vht3[0]) - 1;
   const double *vht = (isRun3 ? &vht3[0] : &vht2[0]);
   const int nht = (isRun3 ? nht3 : nht2);
@@ -955,8 +1030,11 @@ void DijetHistosFill::Loop()
     hLHE_HT = new TH1D("hLHE_HT", ";H_{T} (GeV);N_{evt} (unweighted)", nht, vht);
     hLHE_HTw = new TH1D("hLHE_HTw", ";H_{T} (GeV);N_{evt} (weighted)", nht, vht);
     hHT = new TH1D("hHT", ";H_{T} (GeV);N_{evt} (weighted)", 2490, 10, 2500);
+    hHT_Now = new TH1D("hHT_Now", ";H_{T} (GeV);N_{evt} (unweighted)", 2490, 10, 2500);
+    hHT_MCw = new TH1D("hHT_MCw", ";H_{T} (GeV);N_{evt} (MC weight event)", 2490, 10, 2500);
+    hHT_w = new TH1D("hHT_w", ";genWeight;N_{evt} (genWeight)", 2490, 10, 2500);
 
-    // Reference number of events, retrieved manuallay with
+    // Reference number of events, retrieved manually with
     // TChain c("Events"); c.AddFile("<path to files>/*.root"); c.GetEntries();
     // Also re-calculated this code before event loop when needed
     int vnevt2[nht2] = {0, 0, 11197186, 23002929, 17512439, 16405924, 14359110,
@@ -981,12 +1059,21 @@ void DijetHistosFill::Loop()
     double vxsec2[nht2] = {0, 0, 246300000. * 23700000. / 28060000., 23700000,
                            1547000, 322600, 29980, 6334, 1088, 99.11, 20.23};
     // Run3 xsec from Mikel Mendizabal, MatterMost 16 Oct 2023
+    // SUMMER22
+    //double vxsec3[nht3] =
+    //    {0, 3.136e+08,
+    //     5.883e+07, // 5.807e+07 * 3478241.4 / 5305581.5, // HT 70to100
+    //     2.520e+07, 1.936e+06, 9.728e+04,
+    //     1.323e+04, // 3.044e+04, //HT 60to800
+    //     3.027e+03, 8.883e+02, 3.834e+02, 1.253e+02, 2.629e+01};
+
+    // SUMMER23, Fikri MatterMost 22.2.2024
     double vxsec3[nht3] =
-        {0, 3.136e+08,
-         5.883e+07, // 5.807e+07 * 3478241.4 / 5305581.5, // HT 70to100
-         2.520e+07, 1.936e+06, 9.728e+04,
-         1.323e+04, // 3.044e+04, //HT 60to800
-         3.027e+03, 8.883e+02, 3.834e+02, 1.253e+02, 2.629e+01};
+        {0, 3.131e+08,
+         5.892e+07,
+         2.532e+07, 1.964e+06, 9.690e+04,
+         1.360e+04,
+         3.052e+03, 8.929e+02, 3.863e+02, 1.267e+02, 2.665e+01};
     const double *vxsec = (isRun3 ? &vxsec3[0] : &vxsec2[0]);
     for (int i = 0; i != nht; ++i)
     {
@@ -1145,7 +1232,7 @@ void DijetHistosFill::Loop()
   map<string, multijetHistos *> mhmj;
   map<string, lumiHistos *> mhlumi;
 
-  bool dolumi = !isMC;
+  bool dolumi = false;
   if (dolumi)
     LoadLumi();
 
@@ -1851,6 +1938,9 @@ void DijetHistosFill::Loop()
       h->lumsum = 0.0;
       h->lumsum2 = 0.0;
       h->htrglumi = new TH1D("htrglumi", "", 100, 0, 1);
+      h->htrgpu = new TH1D("htrgpu", "", 100, 0, 100);
+      h->hnpv = new TH1D("hnpv", "", 100, 0, 100);
+      h->hnpvgood = new TH1D("hnpvgood", "", 100, 0, 100);
     }
 
   } // for itrg
@@ -1885,9 +1975,11 @@ void DijetHistosFill::Loop()
   if (dataset == "2023B" || dataset == "2023C" || dataset == "2023BCv123" ||
       dataset == "2023Cv123" || dataset == "2023Cv4" ||
       dataset == "2023B_ZB" || dataset == "2023C_ZB" || dataset == "2023BCv123_ZB" ||
-      dataset == "2023Cv123_ZB" || dataset == "2023Cv4_ZB")
+      dataset == "2023Cv123_ZB" || dataset == "2023Cv4_ZB" ||
+      (TString(dataset.c_str()).Contains("Summer23MG") && ! TString(dataset.c_str()).Contains("MGBPix")))
     fjv = new TFile("rootfiles/jetveto2023BC.root", "READ");
-  if (dataset == "2023D" || dataset == "2023D_ZB")
+  if (dataset == "2023D" || dataset == "2023D_ZB" ||
+      TString(dataset.c_str()).Contains("Summer23MGBPix"))
     fjv = new TFile("rootfiles/jetveto2023D.root", "READ");
   assert(fjv);
 
@@ -1923,9 +2015,11 @@ void DijetHistosFill::Loop()
   if (dataset == "2023B" || dataset == "2023C" || dataset == "2023BCv123" ||
       dataset == "2023Cv123" || dataset == "2023Cv4" ||
       dataset == "2023B_ZB" || dataset == "2023C_ZB" || dataset == "2023BCv123_ZB" ||
-      dataset == "2023Cv123_ZB" || dataset == "2023Cv4_ZB")
+      dataset == "2023Cv123_ZB" || dataset == "2023Cv4_ZB" ||
+      (TString(dataset.c_str()).Contains("Summer23MG") && ! TString(dataset.c_str()).Contains("MGBPix")))
     h2jv = (TH2D *)fjv->Get("jetvetomap");
-  if (dataset == "2023D" || dataset == "2023D_ZB")
+  if (dataset == "2023D" || dataset == "2023D_ZB" ||
+      TString(dataset.c_str()).Contains("Summer23MGBPix"))
     h2jv = (TH2D *)fjv->Get("jetvetomap");
   assert(h2jv);
 
@@ -2013,10 +2107,12 @@ void DijetHistosFill::Loop()
       }
       if (nentries != 0)
       {
+        double events_per_second = (double)jentry / fulltime.RealTime(); // Calculate events per second
         cout << Form("\nProcessed %lld events (%1.1f%%) in %1.0f sec. "
                      "(%1.0f sec. for last %d)",
                      jentry, 100. * jentry / nentries, fulltime.RealTime(),
                      laptime.RealTime(), nlap);
+	cout << Form("\nEvents per second: %1.2f", events_per_second); // Print events per second
       }
       if (jentry != 0 && nlap != 0)
       {
@@ -2025,6 +2121,13 @@ void DijetHistosFill::Loop()
                      1. * nentries / jentry * fulltime.RealTime(),
                      1. * nentries / nlap * laptime.RealTime(), nlap)
              << flush;
+        // Nestor
+        //
+        TDatime estimated_completion_time;
+        estimated_completion_time.Set(start_time.Convert() + (1. * nentries / jentry * fulltime.RealTime()));
+        // Format and print the estimated completion time
+        cout << "Estimated full runtime: " << estimated_completion_time.AsSQLString() << endl;
+        //
         laptime.Reset();
         nlap = 0;
       }
@@ -2081,14 +2184,29 @@ void DijetHistosFill::Loop()
     double w = (isMC ? genWeight : 1.);
     if (isMG)
     {
+
       int iht = hxsec->FindBin(LHE_HT);
+      // Check that iht is equal to HT_bin_idx
+      if (iht != HT_bin_idx)
+      {
+        cout << "LHE_HT = " << LHE_HT << " is not in the bin " << HT_bin_idx << " for " << _filename << endl << flush;
+        cout << "Using bin based on filename instead." << endl << flush;
+        iht = HT_bin_idx;
+      }
+
       double xsec = hxsec->GetBinContent(iht);
       double nevt = (isRun3 ? hnwgt->GetBinContent(iht) : hnevt->GetBinContent(iht));
       double wht = (nevt ? xsec / nevt : 1);
       w *= wht;
+      if (w > 10000){
+        cout << "WARNING: w = " << w << " for " << _filename << endl << flush;
+      }
       hLHE_HT->Fill(LHE_HT);     // cross-check hnevt afterwards
       hLHE_HTw->Fill(LHE_HT, w); // cross-check hnwgt afterwards
       hHT->Fill(LHE_HT, w);      // cross-check HT spectrum smoothness afterwards
+      hHT_Now->Fill(LHE_HT); 
+      hHT_MCw->Fill(LHE_HT, genWeight); 
+      hHT_w->Fill(genWeight); 
     }
     double rho = Rho_fixedGridRhoFastjetAll;
 
@@ -2159,31 +2277,43 @@ void DijetHistosFill::Loop()
     int njet = nJet;
     for (int i = 0; i != njet; ++i)
     {
-      double rawJetPt = Jet_pt[i] * (1.0 - Jet_rawFactor[i]);
-      double rawJetMass = Jet_mass[i] * (1.0 - Jet_rawFactor[i]);
-      jec->setJetPt(rawJetPt);
-      jec->setJetEta(Jet_eta[i]);
-      if (isRun2)
-      {
-        jec->setJetA(Jet_area[i]);
-        jec->setRho(Rho_fixedGridRhoFastjetAll);
-        jecl1rc->setJetPt(rawJetPt);
-        jecl1rc->setJetEta(Jet_eta[i]);
-        jecl1rc->setJetA(Jet_area[i]);
-        jecl1rc->setRho(Rho_fixedGridRhoFastjetAll);
-      }
-      // double corr = jec->getCorrection();
-      vector<float> v = jec->getSubCorrections();
-      double corr = v.back();
-      double res = (v.size() > 1 ? v[v.size() - 1] / v[v.size() - 2] : 1.);
-      Jet_RES[i] = 1. / res;
-      Jet_deltaJES[i] = (1. / corr) / (1.0 - Jet_rawFactor[i]);
-      Jet_pt[i] = corr * rawJetPt;
-      Jet_mass[i] = corr * rawJetMass;
-      Jet_rawFactor[i] = (1.0 - 1.0 / corr);
-      // pt*(1-l1rcFactor)=ptl1rc => l1rcFactor = 1 - ptl1rc/pt
-      Jet_l1rcFactor[i] = (isRun2 ? (1.0 - jecl1rc->getCorrection() / corr) : Jet_rawFactor[i]);
 
+
+      if (redoJEC)
+      {
+        double rawJetPt = Jet_pt[i] * (1.0 - Jet_rawFactor[i]);
+        double rawJetMass = Jet_mass[i] * (1.0 - Jet_rawFactor[i]);
+        jec->setJetPt(rawJetPt);
+        jec->setJetEta(Jet_eta[i]);
+        jec->setJetPhi(Jet_phi[i]);
+        if (isRun2)
+        {
+          jec->setJetA(Jet_area[i]);
+          jec->setRho(Rho_fixedGridRhoFastjetAll);
+          jecl1rc->setJetPt(rawJetPt);
+          jecl1rc->setJetEta(Jet_eta[i]);
+          jecl1rc->setJetA(Jet_area[i]);
+          jecl1rc->setRho(Rho_fixedGridRhoFastjetAll);
+        }
+        // double corr = jec->getCorrection();
+        vector<float> v = jec->getSubCorrections();
+        double corr = v.back();
+        double res = (v.size() > 1 ? v[v.size() - 1] / v[v.size() - 2] : 1.);
+        Jet_RES[i] = 1. / res;
+        Jet_deltaJES[i] = (1. / corr) / (1.0 - Jet_rawFactor[i]);
+        Jet_pt[i] = corr * rawJetPt;
+        Jet_mass[i] = corr * rawJetMass;
+        Jet_rawFactor[i] = (1.0 - 1.0 / corr);
+        // pt*(1-l1rcFactor)=ptl1rc => l1rcFactor = 1 - ptl1rc/pt
+        Jet_l1rcFactor[i] = (isRun2 ? (1.0 - jecl1rc->getCorrection() / corr) : Jet_rawFactor[i]);
+      }
+      else
+      {
+        Jet_RES[i] = 1.;
+        Jet_deltaJES[i] = 1.;
+        Jet_l1rcFactor[i] = Jet_rawFactor[i];
+      }
+      
       if (true)
       { // check jet veto
         int i1 = h2jv->GetXaxis()->FindBin(Jet_eta[i]);
@@ -2209,6 +2339,15 @@ void DijetHistosFill::Loop()
       Jet_CF[i] = 1.;
     } // reset Jet_CF
 
+    if (isMC && reweightPU)
+    {
+      assert(pileupRatio);
+      // Get the bin
+      int ibin = pileupRatio->FindBin(Pileup_nTrueInt);
+      double pileup_weight = pileupRatio->GetBinContent(ibin);
+      w *= pileup_weight;
+    }
+
     if (isMC && smearJets)
     {
 
@@ -2222,7 +2361,8 @@ void DijetHistosFill::Loop()
           // Retrieve genJet and calculate dR
           double dR(999);
           p4.SetPtEtaPhiM(Jet_pt[i], Jet_eta[i], Jet_phi[i], Jet_mass[i]);
-          if (Jet_genJetIdx[i] >= 0)
+
+          if (Jet_genJetIdx[i] >= 0 )// && Jet_genJetIdx[i] < nGenJet)
           {
             int j = Jet_genJetIdx[i];
             p4g.SetPtEtaPhiM(GenJet_pt[j], GenJet_eta[j], GenJet_phi[j],
@@ -2249,6 +2389,7 @@ void DijetHistosFill::Loop()
 
           // The method presented here can be found in https://twiki.cern.ch/twiki/bin/viewauth/CMS/JetResolution
           // and the corresponding code in https://github.com/cms-sw/cmssw/blob/CMSSW_8_0_25/PhysicsTools/PatUtils/interface/SmearedJetProducerT.h
+          assert(jer);
           double Reso = jer->getResolution({{JME::Binning::JetPt, jPt}, {JME::Binning::JetEta, jEta}, {JME::Binning::Rho, rho}});
           double SF(1);
           if (useJERSFvsPt && jersfvspt)
@@ -2261,6 +2402,11 @@ void DijetHistosFill::Loop()
           else if (!useJERSFvsPt && jersf)
           {
             SF = jersf->getScaleFactor({{JME::Binning::JetEta, jEta}, {JME::Binning::Rho, rho}}, Variation::NOMINAL);
+          }
+          else
+          {
+            cout << "No JER SF available" << endl << flush;
+            assert(false);
           }
 
           // Case 0: by default the JER correction factor is equal to 1
@@ -2320,7 +2466,7 @@ void DijetHistosFill::Loop()
       } // for i
 
       // Then loop over genjets and also update dr
-      for (UInt_t j = 0; j != nGenJet; ++j)
+      for (Int_t j = 0; j != nGenJet; ++j)
       {
 
         p4g.SetPtEtaPhiM(GenJet_pt[j], GenJet_eta[j], GenJet_phi[j],
@@ -3173,7 +3319,12 @@ void DijetHistosFill::Loop()
         */
 
         h->htrglumi->Fill(lum, w); //  / prescale
-        h_lumivstrpu->Fill(trpu, lum, w);
+        h->htrgpu->Fill(trpu, w);
+        h->hnpv->Fill(PV_npvs, w);
+        h->hnpvgood->Fill(PV_npvsGood, w);
+
+        h_trgvslumi->Fill(itrg, lum, w);
+        h_trgvspu->Fill(itrg, trpu, w);
       }
       mrunls[run][luminosityBlock] = 1;
     } // doLumi
@@ -3252,6 +3403,8 @@ void DijetHistosFill::Loop()
   cout << Form("Analyzed %d events", _ngoodevts) << endl;
   cout << "Saving these to " << fout->GetName() << " for drawJMENANO.C" << endl;
 
+
+
   // h2mhtvsmet->Draw("COLZ");
 } // Loop()
 
@@ -3271,7 +3424,7 @@ bool DijetHistosFill::LoadLumi()
 {
   // For calculating luminosity on the fly based on .csv file and take only events with non-zero luminosity
 
-  const char *lumifile = getLumifile(dataset);
+  const char *lumifile = getLumifile(dataset.c_str());
 
   PrintInfo(string("Processing LoadLumi() with ") + lumifile + "...", true);
 
@@ -3304,7 +3457,6 @@ bool DijetHistosFill::LoadLumi()
   PrintInfo(string("\nstring: ") + s + " !", true);
 
   // HOX: the lumi file format has been changing. Change the conditions when needed.
-  // TODO: Check validity for Run 3
   if (s != "#Data tag : 23v1 , Norm tag: None")
     return false;
 
@@ -3349,7 +3501,7 @@ bool DijetHistosFill::LoadLumi()
     if (lum == 0 and goodruns.find(rn) != goodruns.end() and (_json[rn][ls] == 1)) // The second condition had !jp::dojson or
       nolums.insert(pair<int, int>(rn, ls));
 
-    _avgpu[rn][ls] = avgpu; // * 69000. / 78400.; // brilcalc --minBiasXsec patch
+    _avgpu[rn][ls] = avgpu * 69000. / 80000.; // brilcalc --minBiasXsec patch
     _lums[rn][ls] = lum;
     _lums2[rn][ls] = lum2;
     lumsum += lum;
