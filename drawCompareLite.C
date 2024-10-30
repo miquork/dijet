@@ -103,9 +103,13 @@ void drawCompareLite(string run = "2023D") {
 
   string sA = "19Dec2023";
   string sB = "22Sep2023";//"Prompt23";//"22Sep";
-  if (run=="2024B") {
+  if (run=="2024B" || run=="2024C") {
     sA = "ECALRATIO";
     sB = "Prompt24";
+  }
+  if (run=="2024BR" || run=="2024CR") {
+    sA = "ECALRATIO";
+    sB = "HCALDI";
   }
   const char *cA = sA.c_str();
   const char *cB = sB.c_str();
@@ -129,7 +133,9 @@ void drawCompareLite(string run = "2023D") {
     if (run=="2023D_v2")     { h->GetYaxis()->SetRangeUser(0.94,1.09); }
     if (run=="Run3_v2")      { h->GetYaxis()->SetRangeUser(0.94,1.09); }
 
-    if (run=="2024B")      { h->GetYaxis()->SetRangeUser(0.82,1.10); }    
+    if (run=="2024B")      { h->GetYaxis()->SetRangeUser(0.82,1.10); }
+    if (run=="2024C")      { h->GetYaxis()->SetRangeUser(0.82,1.10); }
+    if (run=="2024CR")     { h->GetYaxis()->SetRangeUser(0.94,1.09); }    
   }
   
   lumi_136TeV = run.c_str();//"2023Cv123";
@@ -241,6 +247,15 @@ void drawCompareLite(string run = "2023D") {
 
   // jecsys3/globalFitSettings.h shapes are %'s around 0
   cout << Form("{\"ecalcc\",\"Rjet\",\"max(%1.3g%+1.3g*(-0.798-0.5798*pow(x/396.1,1.412)/(1+pow(x/396.1,1.412))*(1-pow(x/396.1,-1.412)))%+1.3g*x/3000.,-15.)\"},",100.*(f1->GetParameter(0)-1),f1->GetParameter(1),-10.*f1->GetParameter(2)) << endl;
+
+  if (run=="2024CR") {
+    TFile *f = new TFile("rootfiles/compareLite_2024CR_HCALDI_vs_ECALRATIO.root",
+			 "RECREATE");
+    assert(f && !f->IsZombie());
+    g->Write("djes_2024C");
+    f->Close();
+    curdir->cd();
+  }
 } // drawTnP
 
 

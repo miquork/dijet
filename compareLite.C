@@ -209,10 +209,12 @@ FactorizedJetCorrector *selectJECEra(string dataset) {
                  "Summer22Prompt23_Run2023D_V3_DATA_L2L3Residual");
   }
 
-  if (dataset == "2024B" || dataset == "2024BR") {
+  if (dataset == "2024B" || dataset == "2024BR" || dataset == "2024BS" ||
+      dataset == "2024C" || dataset == "2024CR" || dataset == "2024CS") {
     jec = getFJC("",
                  "Winter24Run3_V1_MC_L2Relative_AK4PUPPI",
-                 "Prompt24_Run2024BC_V2M_DATA_L2L3Residual_AK4PFPuppi");
+		 "Prompt24_Run2024CR_V3M_DATA_L2L3Residual_AK4PFPuppi");
+                 //"Prompt24_Run2024BC_V2M_DATA_L2L3Residual_AK4PFPuppi");
   }
 
   assert(jec);
@@ -232,7 +234,13 @@ TH2D *getJVM(string dataset) {
   if (dataset == "2023C" || dataset == "2023Cv123" || dataset == "2023Cv4") {
     fjv = new TFile("rootfiles/jetveto2023BC.root", "READ");
   }
-  if (dataset == "2024B") {
+  if (dataset == "2024B" || dataset == "2024C") {
+    fjv = new TFile("rootfiles/jetveto2024BCD_V3M.root", "READ");
+  }
+  if (dataset == "2024BR" || dataset == "2024CR") {
+    fjv = new TFile("rootfiles/jetveto2024BCD_V3M.root", "READ");
+  }
+  if (dataset == "2024BS" || dataset == "2024CS") {
     fjv = new TFile("rootfiles/jetveto2024BCD_V3M.root", "READ");
   }
   assert(fjv);
@@ -302,10 +310,12 @@ void compareLite(string run="2023D") {
   // Book TB tree (22Sep2023)
   TChain *c_tB = new TChain("Events");
   //cout << "B is 22Sep2023" << endl;
-  cout << "B is Prompt24" << endl;
+  //cout << "B is Prompt24" << endl;
+  cout << "B is HCALDI" << endl;
   {
     //string filename = Form("input_files/dataFiles_%s.txt.22Sep2023.%sv12", crun, OneRun==true ? "OneRun." : "");
-    string filename = Form("input_files/dataFiles_%s.txt.%sPrompt24", crun, OneRun==true ? "OneRun." : "");
+    //string filename = Form("input_files/dataFiles_%s.txt.%sPrompt24", crun, OneRun==true ? "OneRun." : "");
+    string filename = Form("input_files/dataFiles_%s.txt.%s2024HCALDI", crun, OneRun==true ? "OneRun." : "");
     ifstream fin(filename.c_str(), ios::in);
     
     cout << "Chaining data files for B: " << filename << endl << flush;
