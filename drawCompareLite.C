@@ -1,4 +1,5 @@
 // Purpose: Draw tag-and-probe and direct matching results for reco-reco match
+// New: add PF compositions as well
 #include "TFile.h"
 #include "TProfile.h"
 #include "TGraphErrors.h"
@@ -92,7 +93,7 @@ void fixJES(TGraphErrors *g, TProfile *pjesa, TProfile *pjesb) {
   }
 }
 
-void drawCompareLite(string run = "2023D") {
+void drawCompareLite(string run = "2024F") {
 
   setTDRStyle();
   TDirectory *curdir = gDirectory;
@@ -111,6 +112,10 @@ void drawCompareLite(string run = "2023D") {
     sA = "ECALRATIO";
     sB = "HCALDI";
   }
+  if (run=="2024F" || run=="2024F_ECALCC_0") {
+    sA = "ECALCC";
+    sB = "Prompt24";
+  }
   const char *cA = sA.c_str();
   const char *cB = sB.c_str();
   
@@ -120,6 +125,7 @@ void drawCompareLite(string run = "2023D") {
   // Background canvas
   TH1D *h = tdrHist("h","#LTp_{T}(B)#GT / #LTp_{T}(A)#GT", 0.92,1.07,
 		    "#LTp_{T}(A)#GT (GeV)",xmin,xmax);
+
   if (true) { // without patchJESA
     if (run=="2022CD_v2")    { h->GetYaxis()->SetRangeUser(0.94,1.09); }
     if (run=="2022E_v2")     { h->GetYaxis()->SetRangeUser(0.94,1.09); }
@@ -135,7 +141,9 @@ void drawCompareLite(string run = "2023D") {
 
     if (run=="2024B")      { h->GetYaxis()->SetRangeUser(0.82,1.10); }
     if (run=="2024C")      { h->GetYaxis()->SetRangeUser(0.82,1.10); }
-    if (run=="2024CR")     { h->GetYaxis()->SetRangeUser(0.94,1.09); }    
+    if (run=="2024CR")     { h->GetYaxis()->SetRangeUser(0.94,1.09); }
+
+    if (run=="2024F")     { h->GetYaxis()->SetRangeUser(0.97,1.06); }    
   }
   
   lumi_136TeV = run.c_str();//"2023Cv123";
@@ -149,7 +157,6 @@ void drawCompareLite(string run = "2023D") {
   TProfile *pb_tp = (TProfile*)f->Get("pb_tp"); assert(pb_tp);
   TProfile *pd_tp = (TProfile*)f->Get("pd_tp"); assert(pd_tp);
   TGraphErrors *g = tagandprobe(pta_tp,pa_tp,pb_tp,pd_tp);
-
   // Direct match
   TProfile *pta_dm = (TProfile*)f->Get("pta_dm"); assert(pta_dm);
   TProfile *pa_dm = (TProfile*)f->Get("pa_dm"); assert(pa_dm);
@@ -157,6 +164,7 @@ void drawCompareLite(string run = "2023D") {
   TProfile *ptb_dm = (TProfile*)f->Get("ptb_dm"); assert(ptb_dm);
   TProfile *pb_dm = (TProfile*)f->Get("pb_dm"); assert(pb_dm);
   TGraphErrors *gb = directmatch(ptb_dm,pb_dm,true);
+
   TProfile *ptd_dm = (TProfile*)f->Get("ptd_dm"); assert(ptd_dm);
   TProfile *pd_dm = (TProfile*)f->Get("pd_dm"); assert(pd_dm);
   TGraphErrors *gd = directaverage(ptd_dm,pd_dm);
@@ -165,7 +173,7 @@ void drawCompareLite(string run = "2023D") {
   if (true) {
     TProfile *pjesa = (TProfile*)f->Get("pjesa_dm"); assert(pjesa);
     TProfile *pjesb = (TProfile*)f->Get("pjesb_dm"); assert(pjesb);
-
+    
     fixJES(g, pjesa, pjesb);
     fixJES(ga, pjesa, pjesb);
     fixJES(gb, pjesa, pjesb);
@@ -175,7 +183,8 @@ void drawCompareLite(string run = "2023D") {
   TLine *l = new TLine();
   l->SetLineStyle(kDashed);
   l->SetLineColor(kGray+1);
-  l->DrawLine(xmin,1,xmax,1);
+  if (run=="2024F") l->DrawLine(548.,1,4000.,1);
+  else              l->DrawLine(xmin,1,xmax,1);
   //l->DrawLine(xmin,0.99,xmax,0.99);
   //l->DrawLine(xmin,1.01,xmax,1.01);
 
@@ -223,6 +232,7 @@ void drawCompareLite(string run = "2023D") {
   f1->SetLineWidth(2);
   f1->SetParameters(1.08,-0.05);
   //mg->Fit(f1,"RN");
+  if (run=="2024F") f1->SetRange(1172,3500.);
   g->Fit(f1,"RN");
   f1->Draw("SAME");
 
@@ -232,6 +242,7 @@ void drawCompareLite(string run = "2023D") {
 
   f2->SetLineColor(kGreen+2);
   f2->SetLineWidth(2);
+  if (run=="2024F") f2->SetRange(468.,3500.);
   mg->Fit(f2,"RN");
   f2->Draw("SAME");
   
@@ -244,7 +255,12 @@ void drawCompareLite(string run = "2023D") {
   leg->Draw();
 
   c1->SaveAs(Form("pdf/drawCompareLite_%s_vs_%s_TnP_%s.pdf",cB,cA,crun));
-
+  if (run=="2024F") {
+    h->GetXaxis()->SetRangeUser(548.,4000.);
+    c1->Update();
+    c1->SaveAs(Form("pdf/drawCompareLite_%s_vs_%s_TnP_%s_zoomx.pdf",cB,cA,crun));
+  }
+  
   // jecsys3/globalFitSettings.h shapes are %'s around 0
   cout << Form("{\"ecalcc\",\"Rjet\",\"max(%1.3g%+1.3g*(-0.798-0.5798*pow(x/396.1,1.412)/(1+pow(x/396.1,1.412))*(1-pow(x/396.1,-1.412)))%+1.3g*x/3000.,-15.)\"},",100.*(f1->GetParameter(0)-1),f1->GetParameter(1),-10.*f1->GetParameter(2)) << endl;
 

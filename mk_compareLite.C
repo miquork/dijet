@@ -25,7 +25,8 @@
   //compareLite("2023D");
   //compareLite("2024B");
   //compareLite("2024C");
-  compareLite("2024CR");
+  //compareLite("2024CR");
+  compareLite("2024F");
 
   /*
   drawCompareLite("2022CD_v2");

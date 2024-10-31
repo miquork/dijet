@@ -1,5 +1,6 @@
 // Compare 19Dec2023 vs 22Sep2023
 // => Compare 2024ECALRatio to Prompt
+// => Compare 2024F_ECALCC to Prompt(ECALRATIO)
 // Only load a few branches (event ID, jet pt, eta, phi)
 #include <TROOT.h>
 #include <TChain.h>
@@ -216,6 +217,11 @@ FactorizedJetCorrector *selectJECEra(string dataset) {
 		 "Prompt24_Run2024CR_V3M_DATA_L2L3Residual_AK4PFPuppi");
                  //"Prompt24_Run2024BC_V2M_DATA_L2L3Residual_AK4PFPuppi");
   }
+  if (dataset == "2024F") {
+    jec = getFJC("",
+                 "Winter24Run3_V1_MC_L2Relative_AK4PUPPI",
+		 "Prompt24_Run2024F_V6M_DATA_L2L3Residual_AK4PFPuppi");
+  }
 
   assert(jec);
   return jec;
@@ -243,6 +249,9 @@ TH2D *getJVM(string dataset) {
   if (dataset == "2024BS" || dataset == "2024CS") {
     fjv = new TFile("rootfiles/jetveto2024BCD_V3M.root", "READ");
   }
+  if (dataset == "2024F") {
+    fjv = new TFile("rootfiles/jetveto2024BCDEFGHI_V7M.root", "READ");
+  }
   assert(fjv);
   
   TH2D *h2jv(0);
@@ -253,7 +262,7 @@ TH2D *getJVM(string dataset) {
 }
 
 
-void compareLite(string run="2023D") {
+void compareLite(string run="2023F") {
 
   TDirectory *curdir = gDirectory;
   setTDRStyle();
@@ -267,14 +276,17 @@ void compareLite(string run="2023D") {
   double jesAfix(1.);
   TChain *c_tA = new TChain("Events");
   //cout << "A is 19Dec2023" << endl;
-  cout << "A is 2024ECALRATIO" << endl;
+  //cout << "A is 2024ECALRATIO" << endl;
+  cout << "A is " << crun << " ECALCC" << endl;
   {
     LoadJSON("rootfiles/Cert_Collisions2022_355100_362760_Golden.json");
     LoadJSON("rootfiles/Cert_Collisions2023_366442_370790_Golden.json");
-    LoadJSON("rootfiles/Cert_Collisions2024_378981_380649_Golden.json");
+    LoadJSON("rootfiles/Formatted_Cert_Collisions2024_378981_386951_Golden.json");
 
     //string filename = Form("input_files/dataFiles_%s.txt.19Dec2023.%sv12", crun, OneRun==true ? "OneRun." : "");
-    string filename = Form("input_files/dataFiles_%s.txt.%s2024ECALRATIO", crun, OneRun==true ? "OneRun." : "");
+    //string filename = Form("input_files/dataFiles_%s.txt.%s2024ECALRATIO", crun, OneRun==true ? "OneRun." : "");
+    //string filename = Form("input_files/dataFiles_%s.txt.%s2024ECALRATIO", crun, OneRun==true ? "OneRun." : "");
+    string filename = Form("input_files/dataFiles_%s.txt.%sECALCC", crun, OneRun==true ? "OneRun." : "");
     ifstream fin(filename.c_str(), ios::in);
 
     //string filename = Form("input_files/dataFiles_%s.txt.19Dec2023.v12",crun);
@@ -311,11 +323,13 @@ void compareLite(string run="2023D") {
   TChain *c_tB = new TChain("Events");
   //cout << "B is 22Sep2023" << endl;
   //cout << "B is Prompt24" << endl;
-  cout << "B is HCALDI" << endl;
+  //cout << "B is HCALDI" << endl;
+  cout << "B is " << crun << " Prompt24 (ECALRATIO)" << endl;
   {
     //string filename = Form("input_files/dataFiles_%s.txt.22Sep2023.%sv12", crun, OneRun==true ? "OneRun." : "");
     //string filename = Form("input_files/dataFiles_%s.txt.%sPrompt24", crun, OneRun==true ? "OneRun." : "");
-    string filename = Form("input_files/dataFiles_%s.txt.%s2024HCALDI", crun, OneRun==true ? "OneRun." : "");
+    //string filename = Form("input_files/dataFiles_%s.txt.%s2024HCALDI", crun, OneRun==true ? "OneRun." : "");
+    string filename = Form("input_files/dataFiles_%s.txt.%sPrompt0", crun, OneRun==true ? "OneRun." : "");
     ifstream fin(filename.c_str(), ios::in);
     
     cout << "Chaining data files for B: " << filename << endl << flush;
@@ -395,6 +409,8 @@ void compareLite(string run="2023D") {
   TBranch *b_jtA_tA, *b_jtA_tB;
   TBranch *b_jtid_tA, *b_jtid_tB;
   TBranch *b_jtjes_tA, *b_jtjes_tB;
+  TBranch *b_met_tA, *b_met_tB;
+  TBranch *b_metphi_tA, *b_metphi_tB;
   TBranch *b_rho_tA, *b_rho_tB;
   TBranch *b_jtchHEF_tA,  *b_jtchHEF_tB;
   TBranch *b_jtneHEF_tA,  *b_jtneHEF_tB;
@@ -429,6 +445,8 @@ void compareLite(string run="2023D") {
   Bool_t          Flag_ecalBadCalibFilter;
 
   // Set common branches needed from both trees
+  Float_t met_tA, met_tB;
+  Float_t metphi_tA, metphi_tB;
   Float_t rho_tA, rho_tB;
   Int_t njt_tA, njt_tB;
   //Int_t npv_tA(0), npv_tB(0);
@@ -449,6 +467,9 @@ void compareLite(string run="2023D") {
   Float_t jtmuEF_tA[njt], jtmuEF_tB[njt];
     
   // Book tree A common branches
+  c_tA->SetBranchAddress("RawPuppiMET_pt",&met_tA,&b_met_tA);
+  c_tA->SetBranchAddress("RawPuppiMET_phi",&metphi_tA,&b_metphi_tA);
+  
   c_tA->SetBranchAddress("Rho_fixedGridRhoFastjetAll",&rho_tA,&b_rho_tA);
   c_tA->SetBranchAddress("nJet",&njt_tA,&b_njt_tA);
   c_tA->SetBranchAddress("Jet_pt",jtpt_tA,&b_jtpt_tA);
@@ -487,6 +508,9 @@ void compareLite(string run="2023D") {
   c_tA->SetBranchAddress("Flag_ecalBadCalibFilter", &Flag_ecalBadCalibFilter, &b_Flag_ecalBadCalibFilter);
   
   // Book tree B unique branches
+  c_tB->SetBranchAddress("RawPuppiMET_pt",&met_tB,&b_met_tB);
+  c_tB->SetBranchAddress("RawPuppiMET_phi",&metphi_tB,&b_metphi_tB);
+  
   c_tB->SetBranchAddress("Rho_fixedGridRhoFastjetAll",&rho_tB,&b_rho_tB);
   c_tB->SetBranchAddress("nJet",&njt_tB,&b_njt_tB);
   c_tB->SetBranchAddress("Jet_pt",jtpt_tB,&b_jtpt_tB);
@@ -552,6 +576,9 @@ void compareLite(string run="2023D") {
   c_tA->SetBranchStatus("Jet_rawFactor",1);
   c_tA->SetBranchStatus("Rho_fixedGridRhoFastjetAll", 1);
 
+  c_tA->SetBranchStatus("RawPuppiMET_pt", 1);
+  c_tA->SetBranchStatus("RawPuppiMET_phi", 1);
+
   // Speed up processing by selecting only used branches for tree B
   c_tB->SetBranchStatus("*",0);  // disable all branches
 
@@ -565,6 +592,8 @@ void compareLite(string run="2023D") {
   c_tB->SetBranchStatus("Jet_rawFactor",1);
   c_tB->SetBranchStatus("Rho_fixedGridRhoFastjetAll", 1);
 
+  c_tB->SetBranchStatus("RawPuppiMET_pt", 1);
+  c_tB->SetBranchStatus("RawPuppiMET_phi", 1);
 
 
   if (doPFComposition)
@@ -620,6 +649,11 @@ void compareLite(string run="2023D") {
        2.65, 2.853, 2.964, 3.139, 3.314, 3.489, 3.664, 3.839, 4.013, 4.191,
        4.363, 4.538, 4.716, 4.889, 5.191};
   const int ny = sizeof(vy) / sizeof(vy[0]) - 1;
+
+  // Binning for h3d_tp: 300 bins at [0,3]
+  const int nz = 300;
+  double vz[nz+1];
+  for (int i = 0; i != nz+1; ++i) { vz[i] = (3.-0.)/nz*i; }
   
   // Open file for outputting results
   TFile *f = new TFile(Form("rootfiles/compareLite_%s.root",run.c_str()),
@@ -661,22 +695,49 @@ void compareLite(string run="2023D") {
   // Tag-and-probe method
   f->cd();
   TProfile *pta_tp = new TProfile("pta_tp",";p_{T,tag};p_{T,A}",nx,vx);
+  //TProfile *ptb_tp = new TProfile("ptn_tp",";p_{T,tag};p_{T,B}",nx,vx);
   TProfile *pa_tp = new TProfile("pa_tp",";p_{T,tag};p_{T,A}/p_{T,tag}",nx,vx);
   TProfile *pb_tp = new TProfile("pb_tp",";p_{T,tag};p_{T,B}/p_{T,tag}",nx,vx);
+  //TProfile *pc_tp = new TProfile("pc_tp",";p_{T,tag};"
+  //				 "(p_{T,A}-p_{T,B})/p_{T,tag}",nx,vx);
   TProfile *pd_tp = new TProfile("pd_tp",";p_{T,tag};"
-				 "(p_{T,B}-p_{T,A})/p_{T,tag}",nx,vx);
+				 "0.5*(p_{T,B}-p_{T,A})/p_{T,tag}",nx,vx);
   TH2D *h2a_tp =new TH2D("h2a_tp",";p_{T,tag};p_{T,A}/p_{T,tag}",nx,vx,400,-1,3);
   TH2D *h2b_tp =new TH2D("h2b_tp",";p_{T,tag};p_{T,B}/p_{T,tag}",nx,vx,400,-1,3);
   TH2D *h2d_tp =new TH2D("h2d_tp",";p_{T,tag};"
 			 "0.5*(p_{T,B}-p_{T,A})/p_{T,tag}",nx,vx,600,-3,3);
 
+  TH3D *h3d_tp =new TH3D("h3d_tp",";p_{T,tag};"
+			 "p_{T,A}/p_{T,tag};p_{T,B}/p_{T,tag}",
+			 nx,vx,nz,vz,nz,vz);
+  // MPF variants
+  TH2D *h2mpf_tp =new TH2D("h2mpf_tp",";p_{T,tag};"
+			   "0.5*(MPF(B)-MPF(A))",nx,vx,600,-3,3);
+  TH3D *h3mpf_tp =new TH3D("h3mpf_tp",";p_{T,tag};MPF(A);MPF(B)",
+			 nx,vx,nz,vz,nz,vz);
+
+  TProfile *pta_tpm = new TProfile("pta_tpm",";p_{T,recoil};p_{T,A}",nx,vx);
+  TH2D *h2a_tpm =new TH2D("h2a_tpm",";p_{T,recoil};p_{T,A}/p_{T,recoil}",
+			  nx,vx,400,-1,3);
+  TH2D *h2b_tpm =new TH2D("h2b_tpm",";p_{T,recoil};p_{T,B}/p_{T,recoil}",
+			  nx,vx,400,-1,3);
+  TH2D *h2d_tpm =new TH2D("h2d_tpm",";p_{T,recoil};"
+			  "0.5*(MPF(B)-MPF(A))",nx,vx,600,-3,3);
+  TH3D *h3d_tpm =new TH3D("h3d_tpm",";p_{T,recoil};MPF(A);MPF(B)",
+			  nx,vx,nz,vz,nz,vz);
+
   f->cd("2D");
   TProfile2D *p2ta_tp = new TProfile2D("p2ta_tp",";p_{T,tag};#eta_{A};p_{T,A}",
 				       nx,vx,ny,vy);
+//TProfile2D *p2tb_tp = new TProfile2D("p2tb_tp",";p_{T,tag};#eta_{B};p_{T,B}",
+//				       nx,vx,ny,vy);
   TProfile2D *p2a_tp = new TProfile2D("p2a_tp",";p_{T,tag};#eta_{A};"
 				      "p_{T,A}/p_{T,tag};",nx,vx,ny,vy);
   TProfile2D *p2b_tp = new TProfile2D("p2b_tp",";p_{T,tag};#eta_{A};"
 				      "p_{T,B}/p_{T,tag};",nx,vx,ny,vy);
+  //TProfile2D *p2c_tp = new TProfile2D("p2c_tp",";p_{T,tag};#eta_{B};"
+  //				      "(p_{T,A}-p_{T,B})/p_{T,tag};",
+  //				      nx,vx,ny,vy);
   TProfile2D *p2d_tp = new TProfile2D("p2d_tp",";p_{T,tag};#eta_{A};"
 				      "(p_{T,B}-p_{T,A})/p_{T,tag};",
 				      nx,vx,ny,vy);
@@ -780,7 +841,8 @@ void compareLite(string run="2023D") {
     if (ientrytA < 0) break;
 
     // Sample prescaled triggers before reading full tree
-    bool keeppre((++npre)%nsample2==0);
+    //bool keeppre((++npre)%nsample2==0);
+    bool keeppre(nsample2!=0 && (++npre)%nsample2==0);
     if (!keeppre) {
       b_HLT_PFJet500->GetEntry(ientrytA);
       if (!HLT_PFJet500) continue;
@@ -890,6 +952,40 @@ void compareLite(string run="2023D") {
 	jtjes_tB[i] = (1.0 - 1.0/corr);
       } // for njt_tB
     } // redoJES_B
+
+    // Calculate type-I PuppiMET
+    for (int i = 0; i != njt_tA; ++i) {
+      if (jtpt_tA[i]>15.) {
+
+	double corpt = jtpt_tA[i];
+	double rawpt = jtpt_tA[i] * (1-jtjes_tA[i]);
+	double phi = jtphi_tA[i];
+	
+	double dmetx = -(corpt-rawpt)*cos(phi);
+	double dmety = -(corpt-rawpt)*sin(phi);
+	double metx = met_tA*cos(metphi_tA) + dmetx;
+	double mety = met_tA*sin(metphi_tA) + dmety;
+
+	met_tA = tools::oplus(metx,mety);
+	metphi_tA = TMath::ATan2(mety,metx);
+      }
+    }
+    for (int i = 0; i != njt_tB; ++i) {
+      if (jtpt_tB[i]>15.) {
+
+	double corpt = jtpt_tB[i];
+	double rawpt = jtpt_tB[i] * (1-jtjes_tB[i]);
+	double phi = jtphi_tB[i];
+	
+	double dmetx = -(corpt-rawpt)*cos(phi);
+	double dmety = -(corpt-rawpt)*sin(phi);
+	double metx = met_tB*cos(metphi_tB) + dmetx;
+	double mety = met_tB*sin(metphi_tB) + dmety;
+
+	met_tB = tools::oplus(metx,mety);
+	metphi_tB = TMath::ATan2(mety,metx);
+      }
+    }
     
     // Loop over two leading jets to find probe pairs
     for (int i = 0; i != min(2,int(njt_tA)); ++i) {
@@ -936,19 +1032,20 @@ void compareLite(string run="2023D") {
 
 	  // Tag selection
 	  bool istp(false);
-	  double pttag(0);
+	  double pttag(0), phitag(0);
+	  double pttagA(0), phiTA(0), pttagB(0), phiTB(0);
 	  if (i<2 && j<2 && njt_tA>1 && njt_tB>1) {
 
 	    // Tag is the other one of the two leading jets
 	    int k = (i==0 ? 1 : 0);
 	    int l = (j==0 ? 1 : 0);
 	    
-	    double pttagA = jtpt_tA[k];
-	    double pttagB = jtpt_tB[l];
+	    pttagA = jtpt_tA[k];
+	    pttagB = jtpt_tB[l];
 	    pttag = 0.5 * (pttagA+pttagB);
 
-	    double phiTA = jtphi_tA[k];
-	    double phiTB = jtphi_tB[l];
+	    phiTA = jtphi_tA[k];
+	    phiTB = jtphi_tB[l];
 	    double dphiTA = delta_phi(phiTA,phi);
 	    double dphiTB = delta_phi(phiTB,phiB);
 	    double dphitag = 0.5*(dphiTA + dphiTB);
@@ -963,7 +1060,12 @@ void compareLite(string run="2023D") {
 	    double alphaTB = pt3B / pttagB;
 	    double alphatag = (alphaTA>0 && alphaTB>0 ?
 			       0.5*(alphaTA+alphaTB) : max(alphaTA,alphaTB));
-
+	    
+	    // Calculate tag bisector axis (phitag) for TnP MPF
+	    double xtag = cos(phiTA) + cos(phiTB);
+	    double ytag = sin(phiTA) + sin(phiTB);
+	    phitag = TMath::ATan2(ytag,xtag);
+	    
 	    //bool trigger = true; // pttag>600
 	    bool trigger =
 	      ((HLT_PFJet500 && pttag>638) ||
@@ -1054,7 +1156,63 @@ void compareLite(string run="2023D") {
 		h2a_tp->Fill(pttag, pt / pttag);
 		h2b_tp->Fill(pttag, ptB / pttag);
 		h2d_tp->Fill(pttag, 0.5*(ptB-pt) / pttag);
-	      }
+
+		h3d_tp->Fill(pttag, pt / pttag, ptB / pttag);
+
+		// MPF variants: first ensure tag jet is same in both METs
+		{ // variant 1: tag jet is same
+		  double metA(met_tA), metphiA(metphi_tA);
+		  double dmexA = -pttag*cos(phitag) + pttagA*cos(phiTA);
+		  double dmeyA = -pttag*sin(phitag) + pttagA*sin(phiTA);
+		  double mexA = metA*cos(metphiA) + dmexA;
+		  double meyA = metA*sin(metphiA) + dmeyA;
+		  metA = tools::oplus(mexA,meyA);
+		  metphiA = TMath::ATan2(meyA,mexA);
+		  
+		  double metB(met_tB), metphiB(metphi_tB);
+		  double dmexB = -pttag*cos(phitag) + pttagB*cos(phiTB);
+		  double dmeyB = -pttag*sin(phitag) + pttagB*sin(phiTB);
+		  double mexB = metB*cos(metphiB) + dmexB;
+		  double meyB = metB*sin(metphiB) + dmeyB;
+		  metB = tools::oplus(mexB,meyB);
+		  metphiB = TMath::ATan2(meyB,mexB);
+
+		  double mpfa = 1 + metA*cos(delta_phi(metphiA,phitag)) / pttag;
+		  double mpfb = 1 + metB*cos(delta_phi(metphiB,phitag)) / pttag;
+		  h2mpf_tp->Fill(pttag, 0.5*(mpfa-mpfb));
+		  h3mpf_tp->Fill(pttag, mpfa, mpfb);
+		}
+
+		// MPF variants: ensure rest of MET (recoil) is same in both
+		{ // variant 2: whole MET recoil is same, i.e. remove probe
+		  double rexA = -met_tA*cos(metphi_tA) - pt*cos(phi);
+		  double reyA = -met_tA*sin(metphi_tA) - pt*sin(phi);
+		  double rexB = -met_tB*cos(metphi_tB) - ptB*cos(phiB);
+		  double reyB = -met_tB*sin(metphi_tB) - ptB*sin(phiB);
+		  double rex = 0.5*(rexA + rexB);
+		  double rey = 0.5*(reyA + reyB);
+		  double ret = tools::oplus(rex,rey);
+		  double retphi = TMath::ATan2(rey,rex);
+
+		  double mexA = -rex - pt*cos(phi);
+		  double meyA = -rey - pt*sin(phi);
+		  double metA = tools::oplus(mexA,meyA);
+		  double metphiA = TMath::ATan2(meyA,mexA);
+		  double mexB = -rex - ptB*cos(phiB);
+		  double meyB = -rey - ptB*sin(phiB);
+		  double metB = tools::oplus(mexB,meyB);
+		  double metphiB = TMath::ATan2(meyB,mexB);
+
+		  double mpfa = 1 + metA*cos(delta_phi(metphiA,retphi)) / ret;
+		  double mpfb = 1 + metB*cos(delta_phi(metphiB,retphi)) / ret;
+		  pta_tpm->Fill(ret, pt);		 
+		  h2a_tpm->Fill(ret, pt / ret);
+		  h2b_tpm->Fill(ret, ptB / ret);
+		  h2d_tpm->Fill(ret, 0.5*(mpfa-mpfb));
+		  h3d_tpm->Fill(ret, mpfa, mpfb);
+		}
+		
+	      } // is barrel
 		
 	      // 2D variants
 	      p2ta_tp->Fill(pttag, eta, pt);
