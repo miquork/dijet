@@ -654,6 +654,10 @@ void compareLite(string run="2023F") {
   const int nz = 300;
   double vz[nz+1];
   for (int i = 0; i != nz+1; ++i) { vz[i] = (3.-0.)/nz*i; }
+
+  const int npf = 200;
+  double vpf[npf+1];
+  for (int i = 0; i != npf+1; ++i) { vpf[i] = -1 + (1.-(-1.))/npf*i; }
   
   // Open file for outputting results
   TFile *f = new TFile(Form("rootfiles/compareLite_%s.root",run.c_str()),
