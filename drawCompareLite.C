@@ -120,7 +120,7 @@ void drawCompareLite(string run = "2024F") {
   const char *cB = sB.c_str();
   
   double xmin = 15;//600;
-  double xmax = 4000;//3500;
+  double xmax = 4500;//4000;//3500;
 
   // Background canvas
   TH1D *h = tdrHist("h","#LTp_{T}(B)#GT / #LTp_{T}(A)#GT", 0.92,1.07,
@@ -147,6 +147,7 @@ void drawCompareLite(string run = "2024F") {
   }
   
   lumi_136TeV = run.c_str();//"2023Cv123";
+  if (run=="2024F") lumi_136TeV = "2024F(0), 0.5 #times 27.8 fb^{-1}";
   extraText = "Private";
   TCanvas *c1 = tdrCanvas("c1",h,8,11,kSquare);
   gPad->SetLogx();
@@ -232,7 +233,7 @@ void drawCompareLite(string run = "2024F") {
   f1->SetLineWidth(2);
   f1->SetParameters(1.08,-0.05);
   //mg->Fit(f1,"RN");
-  if (run=="2024F") f1->SetRange(1172,3500.);
+  if (run=="2024F") f1->SetRange(1172,4500.);
   g->Fit(f1,"RN");
   f1->Draw("SAME");
 
@@ -242,7 +243,7 @@ void drawCompareLite(string run = "2024F") {
 
   f2->SetLineColor(kGreen+2);
   f2->SetLineWidth(2);
-  if (run=="2024F") f2->SetRange(468.,3500.);
+  if (run=="2024F") f2->SetRange(468.,4500.);
   mg->Fit(f2,"RN");
   f2->Draw("SAME");
   
@@ -256,9 +257,45 @@ void drawCompareLite(string run = "2024F") {
 
   c1->SaveAs(Form("pdf/drawCompareLite_%s_vs_%s_TnP_%s.pdf",cB,cA,crun));
   if (run=="2024F") {
-    h->GetXaxis()->SetRangeUser(548.,4000.);
+    h->GetXaxis()->SetRangeUser(548.,4500.);
     c1->Update();
     c1->SaveAs(Form("pdf/drawCompareLite_%s_vs_%s_TnP_%s_zoomx.pdf",cB,cA,crun));
+
+    // Cleaner PF plot with TnP only and JEC in %
+    TGraphErrors *g1b = new TGraphErrors(g->GetN());
+    for (int i = 0; i != g->GetN(); ++i) {
+      g1b->SetPoint(i, g->GetX()[i], (g->GetY()[i]-1)*100.);
+      g1b->SetPointError(i, g->GetEX()[i], g->GetEY()[i]*100.);
+    }
+    TF1 *f1b = new TF1("f1b","100.*([0]+[1]*0.01*(-0.798-0.5798*pow(x/396.1,1.412)/(1+pow(x/396.1,1.412))*(1-pow(x/396.1,-1.412)))+[2]*-0.1*x/3000. - 1)",548,4500.);
+    f1b->SetParameters(f1->GetParameter(0),f1->GetParameter(1),
+		       f1->GetParameter(2));
+
+    double eps = 1e-4;
+    TH1D *h1b = tdrHist("h1b","#LTp_{T}(B)#GT / #LTp_{T}(A)#GT - 1 (%)",
+			-1.5+eps,+3.5-eps,
+			"#LTp_{T}(A)#GT (GeV)",548.,4500.);
+    TCanvas *c1b = tdrCanvas("c1b",h1b,8,11,kSquare);
+    gPad->SetLogx();
+    gPad->SetLeftMargin(0.16);
+    gPad->SetBottomMargin(0.14);
+
+    l->DrawLine(548.,0.,4500.,0.);
+    
+    tdrDraw(g1b,"Pz",kFullCircle,kBlack);
+
+    TLegend *leg1b = tdrLeg(0.40,0.90-0.05*1,0.65,0.90);
+    leg1b->AddEntry(g1b, "Tag-and-probe", "PLE");
+
+    t->DrawLatex(0.19,0.75,"|#eta| < 1.3");
+    t->DrawLatex(0.50,0.22,Form("B: %s",cB));
+    t->DrawLatex(0.50,0.17,Form("A: %s",cA));
+
+    f1b->SetLineColor(kBlack);
+    f1b->Draw("SAME");
+
+    gPad->Update();
+    c1b->SaveAs(Form("pdf/drawCompareLite_%s_vs_%s_TnP_%s_zoomx_v2.pdf",cB,cA,crun));
   }
   
   // jecsys3/globalFitSettings.h shapes are %'s around 0

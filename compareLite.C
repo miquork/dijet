@@ -329,7 +329,7 @@ void compareLite(string run="2023F") {
     //string filename = Form("input_files/dataFiles_%s.txt.22Sep2023.%sv12", crun, OneRun==true ? "OneRun." : "");
     //string filename = Form("input_files/dataFiles_%s.txt.%sPrompt24", crun, OneRun==true ? "OneRun." : "");
     //string filename = Form("input_files/dataFiles_%s.txt.%s2024HCALDI", crun, OneRun==true ? "OneRun." : "");
-    string filename = Form("input_files/dataFiles_%s.txt.%sPrompt0", crun, OneRun==true ? "OneRun." : "");
+    string filename = Form("input_files/dataFiles_%s.txt.%sPrompt", crun, OneRun==true ? "OneRun." : "");
     ifstream fin(filename.c_str(), ios::in);
     
     cout << "Chaining data files for B: " << filename << endl << flush;
@@ -667,15 +667,19 @@ void compareLite(string run="2023F") {
   TProfile *pchHEFb_tp = new TProfile("pchHEFb_tp",";p_{T,tag};chHEF_{B}",nx,vx);
   TProfile *pchHEabAbsDiff_tp = new TProfile("pchHEabAbsDiff_tp",";p_{T,tag};(p_{T,raw,A}*chHEF_{A})-(p_{T,raw,B}*chHEF_{B})",nx,vx);
   TProfile *pchHEabAbsDiffn_tp = new TProfile("pchHEabAbsDiffn_tp",";p_{T,tag};((p_{T,raw,A}*chHEF_{A})-(p_{T,raw,B}*chHEF_{B}))/p_{T,tag}",nx,vx);
+  TH2D *h2chHEabAbsDiffn_tp = new TH2D("h2chHEabAbsDiffn_tp",";p_{T,tag};((p_{T,raw,A}*chHEF_{A})-(p_{T,raw,B}*chHEF_{B}))/p_{T,tag}",nx,vx,npf,vpf);
+  
   TProfile *pneHEFa_tp = new TProfile("pneHEFa_tp",";p_{T,tag};neHEF_{A}",nx,vx);
   TProfile *pneHEFb_tp = new TProfile("pneHEFb_tp",";p_{T,tag};neHEF_{B}",nx,vx);
   TProfile *pneHEabAbsDiff_tp = new TProfile("pneHEabAbsDiff_tp",";p_{T,tag};(p_{T,raw,A}*neHEF_{A})-(p_{T,raw,B}*neHEF_{B})",nx,vx);
   TProfile *pneHEabAbsDiffn_tp = new TProfile("pneHEabAbsDiffn_tp",";p_{T,tag};((p_{T,raw,A}*neHEF_{A})-(p_{T,raw,B}*neHEF_{B}))/p_{T,tag}",nx,vx);
+  TH2D *h2neHEabAbsDiffn_tp = new TH2D("h2neHEabAbsDiffn_tp",";p_{T,tag};((p_{T,raw,A}*neHEF_{A})-(p_{T,raw,B}*neHEF_{B}))/p_{T,tag}",nx,vx,npf,vpf);
+  
   TProfile *pneEmEFa_tp = new TProfile("pneEmEFa_tp",";p_{T,tag};neEmEF_{A}",nx,vx);
   TProfile *pneEmEFb_tp = new TProfile("pneEmEFb_tp",";p_{T,tag};neEmEF_{B}",nx,vx);
   TProfile *pneEmEabAbsDiff_tp = new TProfile("pneEmEabAbsDiff_tp",";p_{T,tag};(p_{T,raw,A}*neEmEF_{A})-(p_{T,raw,B}*neEmEF_{B})",nx,vx);
   TProfile *pneEmEabAbsDiffn_tp = new TProfile("pneEmEabAbsDiffn_tp",";p_{T,tag};((p_{T,raw,A}*neEmEF_{A})-(p_{T,raw,B}*neEmEF_{B}))/p_{T,tag}",nx,vx);
-
+  TH2D *h2neEmEabAbsDiffn_tp = new TH2D("h2neEmEabAbsDiffn_tp",";p_{T,tag};((p_{T,raw,A}*neEmEF_{A})-(p_{T,raw,B}*neEmEF_{B}))/p_{T,tag}",nx,vx,npf,vpf);
   
   TProfile2D *p2chHEFa_tp = new TProfile2D("p2chHEFa_tp",";p_{T,tag};#eta_{A};chHEF_{A}",nx,vx,ny,vy);
   TProfile2D *p2chHEFb_tp = new TProfile2D("p2chHEFb_tp",";p_{T,tag};#eta_{A};chHEF_{B}",nx,vx,ny,vy);
@@ -695,11 +699,8 @@ void compareLite(string run="2023F") {
   // Tag-and-probe method
   f->cd();
   TProfile *pta_tp = new TProfile("pta_tp",";p_{T,tag};p_{T,A}",nx,vx);
-  //TProfile *ptb_tp = new TProfile("ptn_tp",";p_{T,tag};p_{T,B}",nx,vx);
   TProfile *pa_tp = new TProfile("pa_tp",";p_{T,tag};p_{T,A}/p_{T,tag}",nx,vx);
   TProfile *pb_tp = new TProfile("pb_tp",";p_{T,tag};p_{T,B}/p_{T,tag}",nx,vx);
-  //TProfile *pc_tp = new TProfile("pc_tp",";p_{T,tag};"
-  //				 "(p_{T,A}-p_{T,B})/p_{T,tag}",nx,vx);
   TProfile *pd_tp = new TProfile("pd_tp",";p_{T,tag};"
 				 "0.5*(p_{T,B}-p_{T,A})/p_{T,tag}",nx,vx);
   TH2D *h2a_tp =new TH2D("h2a_tp",";p_{T,tag};p_{T,A}/p_{T,tag}",nx,vx,400,-1,3);
@@ -729,15 +730,10 @@ void compareLite(string run="2023F") {
   f->cd("2D");
   TProfile2D *p2ta_tp = new TProfile2D("p2ta_tp",";p_{T,tag};#eta_{A};p_{T,A}",
 				       nx,vx,ny,vy);
-//TProfile2D *p2tb_tp = new TProfile2D("p2tb_tp",";p_{T,tag};#eta_{B};p_{T,B}",
-//				       nx,vx,ny,vy);
   TProfile2D *p2a_tp = new TProfile2D("p2a_tp",";p_{T,tag};#eta_{A};"
 				      "p_{T,A}/p_{T,tag};",nx,vx,ny,vy);
   TProfile2D *p2b_tp = new TProfile2D("p2b_tp",";p_{T,tag};#eta_{A};"
 				      "p_{T,B}/p_{T,tag};",nx,vx,ny,vy);
-  //TProfile2D *p2c_tp = new TProfile2D("p2c_tp",";p_{T,tag};#eta_{B};"
-  //				      "(p_{T,A}-p_{T,B})/p_{T,tag};",
-  //				      nx,vx,ny,vy);
   TProfile2D *p2d_tp = new TProfile2D("p2d_tp",";p_{T,tag};#eta_{A};"
 				      "(p_{T,B}-p_{T,A})/p_{T,tag};",
 				      nx,vx,ny,vy);
@@ -814,7 +810,7 @@ void compareLite(string run="2023F") {
       cout << endl
 	   << Form("Processed %ld events (%1.1f%%) in %1.0f sec. ETA:",
 		   (long int)nev, 100.*nev/ntotA,
-		   t.RealTime()) << endl;
+		   t.RealTime()) << endl << flush;
       TDatime now; now.Set(now.Convert()+t.RealTime()*(ntotA-nev)/nev);
       now.Print();
       t.Continue();
@@ -824,7 +820,7 @@ void compareLite(string run="2023F") {
       cout << endl
 	   << Form("Last lap %ld events (%1.1f%%) in %1.0f sec. ETA:",
 		   (long int)nlap, 100.*nlap/ntotA,
-		   tlap.RealTime()) << endl;
+		   tlap.RealTime()) << endl << flush;
       TDatime now; now.Set(now.Convert()+tlap.RealTime()*(ntotA-nev)/nlap);
       now.Print();
       tlap.Reset();
@@ -1014,12 +1010,13 @@ void compareLite(string run="2023F") {
 	double etaB = jteta_tB[j];
 	double phiB = jtphi_tB[j];
 	bool idtightB = (jtid_tB[j]>=4);
-	
-	double chHEFB = jtchHEF_tB[i];
+
+	// 2024-10-31: fix i->j (x3)
+	double chHEFB = jtchHEF_tB[j];
 	double chHEB = chHEFB*rawptB;
-	double neHEFB = jtneHEF_tB[i];
+	double neHEFB = jtneHEF_tB[j];
 	double neHEB = neHEFB*rawptB;
-	double neEmEFB = jtneEmEF_tB[i];
+	double neEmEFB = jtneEmEF_tB[j];
 	double neEmEB = neEmEFB*rawptB;
 
 	// Match probe jets with deltaR<R/cone2
@@ -1226,14 +1223,19 @@ void compareLite(string run="2023F") {
 		  pchHEFb_tp->Fill(pttag,chHEFB);
 		  pchHEabAbsDiff_tp->Fill(pttag,chHE-chHEB);
 		  pchHEabAbsDiffn_tp->Fill(pttag,(chHE-chHEB)/pttag);
+		  h2chHEabAbsDiffn_tp->Fill(pttag,(chHE-chHEB)/pttag);
+		  
 		  pneHEFa_tp->Fill(pttag,neHEF);
 		  pneHEFb_tp->Fill(pttag,neHEFB);
 		  pneHEabAbsDiff_tp->Fill(pttag,neHE-neHEB);
 		  pneHEabAbsDiffn_tp->Fill(pttag,(neHE-neHEB)/pttag);
+		  h2neHEabAbsDiffn_tp->Fill(pttag,(neHE-neHEB)/pttag);
+		  
 		  pneEmEFa_tp->Fill(pttag,neEmEF);
 		  pneEmEFb_tp->Fill(pttag,neEmEFB);
 		  pneEmEabAbsDiff_tp->Fill(pttag,neEmE-neEmEB);
 		  pneEmEabAbsDiffn_tp->Fill(pttag,(neEmE-neEmEB)/pttag);
+		  h2neEmEabAbsDiffn_tp->Fill(pttag,(neEmE-neEmEB)/pttag);
 		}
 
 		p2chHEFa_tp->Fill(pttag,eta, chHEF);
